@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import type { SettingsController } from "@/hooks/use-settings"
+import { findGroup, resolveVariant, sizeSummary } from "@/lib/model-groups"
 import { cn } from "@/lib/utils"
 import type { ApiMode, ApiSettings } from "@/lib/types"
 
@@ -45,7 +46,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 }
 
 export function SettingsDialog({ open, onOpenChange, controller }: SettingsDialogProps) {
-  const { models, modelsLoading, modelsError, refreshModels } = controller
+  const { modelGroups, modelsLoading, modelsError, refreshModels } = controller
   const [draft, setDraft] = useState<ApiSettings>(controller.settings)
   const [showToken, setShowToken] = useState(false)
   const [testing, setTesting] = useState(false)
@@ -63,6 +64,10 @@ export function SettingsDialog({ open, onOpenChange, controller }: SettingsDialo
   const patch = (p: Partial<ApiSettings>) => setDraft((prev) => ({ ...prev, ...p }))
   const patchCard = (p: Partial<ApiSettings["card"]>) =>
     setDraft((prev) => ({ ...prev, card: { ...prev.card, ...p } }))
+
+  const currentMatch = findGroup(modelGroups, draft.model)
+  const currentGroup = currentMatch?.group
+  const currentVariant = currentMatch?.variant
 
   const save = () => {
     controller.updateSettings(draft)
@@ -175,21 +180,49 @@ export function SettingsDialog({ open, onOpenChange, controller }: SettingsDialo
                     刷新列表
                   </Button>
                 </div>
-                <Select value={draft.model} onValueChange={(value) => patch({ model: value })}>
+                <Select
+                  value={currentGroup?.key ?? ""}
+                  onValueChange={(key) => {
+                    const group = modelGroups.find((g) => g.key === key)
+                    if (group) patch({ model: resolveVariant(group, currentVariant?.size).id })
+                  }}
+                >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="选择模型" />
                   </SelectTrigger>
                   <SelectContent className="max-h-72">
-                    {models.map((model) => (
-                      <SelectItem key={model.id} value={model.id}>
+                    {modelGroups.map((group) => (
+                      <SelectItem key={group.key} value={group.key}>
                         <span className="flex w-full items-center justify-between gap-3">
-                          <span>{model.name}</span>
-                          <span className="text-xs text-muted-foreground">{model.description}</span>
+                          <span>{group.name}</span>
+                          <span className="text-xs text-muted-foreground">{sizeSummary(group)}</span>
                         </span>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {currentGroup && currentGroup.variants.length > 1 && (
+                  <div className="mt-3 space-y-1.5">
+                    <Label className="text-xs">上下文长度</Label>
+                    <div className="flex gap-0.5 rounded-lg bg-muted/60 p-0.5">
+                      {currentGroup.variants.map((variant) => (
+                        <button
+                          key={variant.id}
+                          type="button"
+                          onClick={() => patch({ model: variant.id })}
+                          className={cn(
+                            "flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
+                            variant.id === draft.model
+                              ? "bg-background text-foreground shadow-sm"
+                              : "text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          {variant.size}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {modelsError && (
                   <p className="mt-2 text-xs text-destructive">{modelsError}</p>
                 )}
@@ -271,11 +304,11 @@ export function SettingsDialog({ open, onOpenChange, controller }: SettingsDialo
                       id="max-tokens"
                       type="number"
                       min={50}
-                      max={8000}
+                      max={20000}
                       step={50}
                       value={draft.maxTokens}
                       onChange={(e) =>
-                        patch({ maxTokens: Math.min(8000, Math.max(50, Number(e.target.value) || 6000)) })
+                        patch({ maxTokens: Math.min(20000, Math.max(50, Number(e.target.value) || 6000)) })
                       }
                     />
                   </div>

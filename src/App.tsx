@@ -64,7 +64,7 @@ export default function App() {
           <ChatHeader
             title={chat.activeConversation?.title ?? "DMZZ AI"}
             model={settings.settings.model}
-            models={settings.models}
+            modelGroups={settings.modelGroups}
             modelsLoading={settings.modelsLoading}
             onModelChange={(model) => settings.updateSettings({ model })}
             onOpenSettings={() => setSettingsOpen(true)}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { listApiModels } from "@/lib/api"
+import { groupModels } from "@/lib/model-groups"
 import { DEFAULT_SETTINGS, type ApiSettings, type ModelInfo } from "@/lib/types"
 
 const SETTINGS_KEY = "dmzz-settings-v1"
@@ -96,11 +97,14 @@ export function useSettings() {
 
   /** 可选模型：API 拉取到的列表 */
   const models: ModelInfo[] = apiModels
+  /** 按基础模型分组（容量变体合并在组内） */
+  const modelGroups = useMemo(() => groupModels(apiModels), [apiModels])
 
   return {
     settings,
     updateSettings,
     models,
+    modelGroups,
     modelsLoading,
     modelsError,
     refreshModels,

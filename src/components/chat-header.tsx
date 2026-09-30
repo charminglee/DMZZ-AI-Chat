@@ -8,12 +8,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import type { ModelInfo } from "@/lib/types"
+import { findGroup, resolveVariant, sizeSummary, type ModelGroup } from "@/lib/model-groups"
+import { cn } from "@/lib/utils"
 
 interface ChatHeaderProps {
   title: string
   model: string
-  models: ModelInfo[]
+  modelGroups: ModelGroup[]
   modelsLoading: boolean
   onModelChange: (id: string) => void
   onOpenSettings: () => void
@@ -24,14 +25,16 @@ interface ChatHeaderProps {
 export function ChatHeader({
   title,
   model,
-  models,
+  modelGroups,
   modelsLoading,
   onModelChange,
   onOpenSettings,
   dark,
   onToggleTheme,
 }: ChatHeaderProps) {
-  const activeModel = models.find((m) => m.id === model)
+  const current = findGroup(modelGroups, model)
+  const currentGroup = current?.group
+  const currentSize = current?.variant.size
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4">
@@ -42,7 +45,9 @@ export function ChatHeader({
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="gap-1.5 px-2.5 text-sm text-muted-foreground hover:text-foreground">
               <span className="size-2 rounded-full bg-emerald-500" />
-              <span className="max-w-44 truncate">{activeModel?.name ?? "选择模型"}</span>
+              <span className="max-w-44 truncate">
+                {currentGroup ? `${currentGroup.name} · ${currentSize}` : "选择模型"}
+              </span>
               {modelsLoading ? (
                 <Loader2 className="size-3.5 animate-spin opacity-60" />
               ) : (
@@ -50,36 +55,60 @@ export function ChatHeader({
               )}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="max-h-96 w-72 overflow-y-auto">
+          <DropdownMenuContent align="end" className="max-h-96 w-80 overflow-y-auto">
+            {currentGroup && currentGroup.variants.length > 1 && (
+              <>
+                <DropdownMenuLabel className="text-xs text-muted-foreground">
+                  上下文长度
+                </DropdownMenuLabel>
+                <div className="px-1.5 pb-1.5">
+                  <div className="flex gap-0.5 rounded-lg bg-muted/60 p-0.5">
+                    {currentGroup.variants.map((variant) => (
+                      <button
+                        key={variant.id}
+                        type="button"
+                        onClick={() => onModelChange(variant.id)}
+                        className={cn(
+                          "flex-1 rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                          variant.id === model
+                            ? "bg-background text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        {variant.size}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <DropdownMenuSeparator />
+              </>
+            )}
             <DropdownMenuLabel className="text-xs text-muted-foreground">
-              选择模型（{models.length}）
+              选择模型（{modelGroups.length}）
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {models.length === 0 ? (
+            {modelGroups.length === 0 ? (
               <DropdownMenuItem disabled>
                 暂无可用模型，请到设置中刷新列表
               </DropdownMenuItem>
             ) : (
-              models.map((m) => (
+              modelGroups.map((group) => (
                 <DropdownMenuItem
-                  key={m.id}
-                  onClick={() => onModelChange(m.id)}
+                  key={group.key}
+                  onClick={() => onModelChange(resolveVariant(group, currentSize).id)}
                   className="gap-3"
                 >
-                  <span className="flex min-w-0 flex-col">
+                  <span className="flex min-w-0 flex-1 flex-col">
                     <span className="flex items-center gap-1.5 font-medium">
-                      <span className="truncate">{m.name}</span>
-                      {m.badge && (
-                        <span className="rounded bg-primary/10 px-1 py-px text-[10px] font-normal text-primary">
-                          {m.badge}
-                        </span>
-                      )}
+                      <span className="truncate">{group.name}</span>
                     </span>
                     <span className="truncate text-xs font-normal text-muted-foreground">
-                      {m.description}
+                      {sizeSummary(group)}
                     </span>
                   </span>
-                  {m.id === model && <Check className="ml-auto size-4 shrink-0" />}
+                  {group.key === currentGroup?.key && (
+                    <Check className="size-4 shrink-0" />
+                  )}
                 </DropdownMenuItem>
               ))
             )}
