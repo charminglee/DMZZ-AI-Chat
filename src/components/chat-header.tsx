@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Moon, Sun } from "lucide-react"
+import { Check, ChevronDown, Loader2, Moon, Settings2, Sun } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -8,14 +8,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Separator } from "@/components/ui/separator"
-import { SidebarTrigger } from "@/components/ui/sidebar"
-import { MODELS } from "@/lib/types"
+import type { ModelInfo } from "@/lib/types"
 
 interface ChatHeaderProps {
   title: string
   model: string
+  models: ModelInfo[]
+  modelsLoading: boolean
   onModelChange: (id: string) => void
+  onOpenSettings: () => void
   dark: boolean
   onToggleTheme: () => void
 }
@@ -23,16 +24,17 @@ interface ChatHeaderProps {
 export function ChatHeader({
   title,
   model,
+  models,
+  modelsLoading,
   onModelChange,
+  onOpenSettings,
   dark,
   onToggleTheme,
 }: ChatHeaderProps) {
-  const activeModel = MODELS.find((m) => m.id === model) ?? MODELS[0]
+  const activeModel = models.find((m) => m.id === model)
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background px-3">
-      <SidebarTrigger className="size-8" />
-      <Separator orientation="vertical" className="mr-1 !h-5" />
+    <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4">
       <h1 className="min-w-0 truncate text-sm font-medium">{title}</h1>
 
       <div className="ml-auto flex items-center gap-1.5">
@@ -40,42 +42,52 @@ export function ChatHeader({
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="gap-1.5 px-2.5 text-sm text-muted-foreground hover:text-foreground">
               <span className="size-2 rounded-full bg-emerald-500" />
-              {activeModel.name}
-              <ChevronDown className="size-3.5 opacity-60" />
+              <span className="max-w-44 truncate">{activeModel?.name ?? "选择模型"}</span>
+              {modelsLoading ? (
+                <Loader2 className="size-3.5 animate-spin opacity-60" />
+              ) : (
+                <ChevronDown className="size-3.5 opacity-60" />
+              )}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-64">
+          <DropdownMenuContent align="end" className="max-h-96 w-72 overflow-y-auto">
             <DropdownMenuLabel className="text-xs text-muted-foreground">
-              选择模型
+              选择模型（{models.length}）
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {MODELS.map((m) => (
-              <DropdownMenuItem
-                key={m.id}
-                onClick={() => onModelChange(m.id)}
-                className="gap-3"
-              >
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-md border bg-muted text-[10px] font-semibold">
-                  {m.name.split(" ")[1] ?? "AI"}
-                </span>
-                <span className="flex min-w-0 flex-col">
-                  <span className="flex items-center gap-1.5 font-medium">
-                    {m.name}
-                    {m.badge && (
-                      <span className="rounded bg-primary/10 px-1 py-px text-[10px] font-normal text-primary">
-                        {m.badge}
-                      </span>
-                    )}
-                  </span>
-                  <span className="truncate text-xs font-normal text-muted-foreground">
-                    {m.description}
-                  </span>
-                </span>
-                {m.id === activeModel.id && (
-                  <Check className="ml-auto size-4 shrink-0" />
-                )}
+            {models.length === 0 ? (
+              <DropdownMenuItem disabled>
+                暂无可用模型，请到设置中刷新列表
               </DropdownMenuItem>
-            ))}
+            ) : (
+              models.map((m) => (
+                <DropdownMenuItem
+                  key={m.id}
+                  onClick={() => onModelChange(m.id)}
+                  className="gap-3"
+                >
+                  <span className="flex min-w-0 flex-col">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <span className="truncate">{m.name}</span>
+                      {m.badge && (
+                        <span className="rounded bg-primary/10 px-1 py-px text-[10px] font-normal text-primary">
+                          {m.badge}
+                        </span>
+                      )}
+                    </span>
+                    <span className="truncate text-xs font-normal text-muted-foreground">
+                      {m.description}
+                    </span>
+                  </span>
+                  {m.id === model && <Check className="ml-auto size-4 shrink-0" />}
+                </DropdownMenuItem>
+              ))
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onOpenSettings} className="gap-2">
+              <Settings2 className="size-4" />
+              设置…
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 

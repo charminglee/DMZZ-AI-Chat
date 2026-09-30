@@ -4,8 +4,11 @@ import {
   ChevronsUpDown,
   LogOut,
   MessageSquare,
+  Monitor,
   Moon,
   MoreHorizontal,
+  PanelLeftClose,
+  PanelLeftOpen,
   Pencil,
   Plus,
   Search,
@@ -32,6 +35,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -49,7 +54,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar"
+import { cn } from "@/lib/utils"
 import type { ChatController } from "@/hooks/use-chat"
 import type { Conversation } from "@/lib/types"
 
@@ -72,15 +79,22 @@ const GROUP_ORDER = ["今天", "昨天", "近 7 天", "更早"]
 
 interface AppSidebarProps {
   chat: ChatController
-  dark: boolean
-  onToggleTheme: () => void
+  theme: {
+    dark: boolean
+    mode: ThemeMode
+    setMode: (mode: ThemeMode) => void
+    toggle: () => void
+  }
+  onOpenSettings: () => void
 }
 
-export function AppSidebar({ chat, dark, onToggleTheme }: AppSidebarProps) {
+export function AppSidebar({ chat, theme, onOpenSettings }: AppSidebarProps) {
   const [query, setQuery] = useState("")
   const [renaming, setRenaming] = useState<Conversation | null>(null)
   const [renameValue, setRenameValue] = useState("")
   const [deleting, setDeleting] = useState<Conversation | null>(null)
+  const { state, toggleSidebar } = useSidebar()
+  const collapsed = state === "collapsed"
 
   useEffect(() => {
     if (renaming) setRenameValue(renaming.title)
@@ -117,9 +131,36 @@ export function AppSidebar({ chat, dark, onToggleTheme }: AppSidebarProps) {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" className="pointer-events-none">
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white">
-                <Sparkles className="size-4" />
+            {/* 品牌 Logo 即侧栏开关：悬停切换为收起/展开图标 */}
+            <SidebarMenuButton
+              size="lg"
+              tooltip={collapsed ? "展开侧边栏" : "收起侧边栏"}
+              aria-label={collapsed ? "展开侧边栏" : "收起侧边栏"}
+              onClick={toggleSidebar}
+              className="transition-transform active:scale-[0.97]"
+            >
+              <div className="group/icon relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-sm shadow-violet-500/30">
+                <Sparkles
+                  className={cn(
+                    "absolute size-4 transition-all duration-300 ease-out",
+                    collapsed
+                      ? "scale-50 -rotate-90 opacity-0"
+                      : "group-hover/icon:scale-50 group-hover/icon:-rotate-90 group-hover/icon:opacity-0",
+                  )}
+                />
+                <PanelLeftClose
+                  className={cn(
+                    "absolute size-4 scale-50 rotate-90 opacity-0 transition-all duration-300 ease-out",
+                    !collapsed &&
+                      "group-hover/icon:rotate-0 group-hover/icon:scale-100 group-hover/icon:opacity-100",
+                  )}
+                />
+                <PanelLeftOpen
+                  className={cn(
+                    "absolute size-4 scale-50 opacity-0 transition-all duration-300 ease-out",
+                    collapsed && "scale-100 opacity-100 group-hover/icon:scale-110",
+                  )}
+                />
               </div>
               <div className="flex flex-col gap-0.5 leading-none">
                 <span className="text-base font-semibold">DMZZ AI</span>
@@ -251,11 +292,28 @@ export function AppSidebar({ chat, dark, onToggleTheme }: AppSidebarProps) {
                   guest@dmzz.ai
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={onToggleTheme}>
-                  {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
-                  {dark ? "切换到浅色模式" : "切换到深色模式"}
-                </DropdownMenuItem>
-                <DropdownMenuItem disabled>
+                <DropdownMenuLabel className="text-xs text-muted-foreground">
+                  主题
+                </DropdownMenuLabel>
+                <DropdownMenuRadioGroup
+                  value={theme.mode}
+                  onValueChange={(value) => theme.setMode(value as ThemeMode)}
+                >
+                  <DropdownMenuRadioItem value="system">
+                    <Monitor className="size-4" />
+                    跟随系统
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="light">
+                    <Sun className="size-4" />
+                    浅色
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="dark">
+                    <Moon className="size-4" />
+                    深色
+                  </DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={onOpenSettings}>
                   <Settings className="size-4" />
                   设置
                 </DropdownMenuItem>

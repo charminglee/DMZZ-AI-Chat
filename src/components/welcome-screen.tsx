@@ -43,7 +43,7 @@ export function WelcomeScreen({ onPick, modelName }: WelcomeScreenProps) {
         今天我能帮你什么？
       </h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        当前模型 {modelName} · 回复由本地脚本模拟
+        当前模型 {modelName}
       </p>
 
       <div className="mt-8 grid w-full max-w-2xl gap-3 sm:grid-cols-2">

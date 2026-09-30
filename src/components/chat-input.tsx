@@ -104,7 +104,7 @@ export function ChatInput({ onSend, onStop, isStreaming }: ChatInputProps) {
           </div>
         </div>
         <p className="mt-2 text-center text-xs text-muted-foreground/70">
-          内容由本地模拟生成，仅用于界面演示
+          AI 生成内容仅供参考
         </p>
       </div>
     </div>

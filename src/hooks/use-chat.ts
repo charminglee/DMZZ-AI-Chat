@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { streamMockReply, type MockStreamHandle } from "@/lib/mock-ai"
-import { MODELS, type Conversation, type Message } from "@/lib/types"
+import { streamChatCompletion, type ChatTurn, type StreamHandle } from "@/lib/api"
+import type { ApiSettings, Conversation, Message } from "@/lib/types"
 
 const STORAGE_KEY = "dmzz-chat-state-v1"
-const MODEL_KEY = "dmzz-chat-model"
 const DEFAULT_TITLE = "新对话"
 const STOPPED_HINT = "*(已停止生成)*"
 
@@ -30,11 +29,6 @@ function loadState(): PersistedState {
   }
 }
 
-function loadModel(): string {
-  const saved = localStorage.getItem(MODEL_KEY)
-  return saved && MODELS.some((m) => m.id === saved) ? saved : MODELS[0].id
-}
-
 function makeConversation(): Conversation {
   const now = Date.now()
   return { id: uid(), title: DEFAULT_TITLE, messages: [], createdAt: now, updatedAt: now }
@@ -45,24 +39,18 @@ function truncateTitle(text: string): string {
   return clean.length > 20 ? `${clean.slice(0, 20)}…` : clean
 }
 
-export function useChat() {
+export function useChat(settings: ApiSettings, userId: string) {
   const [{ conversations, activeId }, setState] = useState<PersistedState>(loadState)
-  const [model, setModel] = useState<string>(loadModel)
   const [isStreaming, setIsStreaming] = useState(false)
-  const streamRef = useRef<MockStreamHandle | null>(null)
+  const streamRef = useRef<StreamHandle | null>(null)
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ conversations, activeId }))
   }, [conversations, activeId])
 
-  useEffect(() => {
-    localStorage.setItem(MODEL_KEY, model)
-  }, [model])
-
   useEffect(() => () => streamRef.current?.cancel(), [])
 
-  const activeConversation =
-    conversations.find((c) => c.id === activeId) ?? null
+  const activeConversation = conversations.find((c) => c.id === activeId) ?? null
 
   const patchConversation = useCallback(
     (id: string, patch: (conv: Conversation) => Conversation) => {
@@ -74,14 +62,24 @@ export function useChat() {
     [],
   )
 
+  const patchMessage = useCallback(
+    (conversationId: string, messageId: string, patch: (m: Message) => Message) => {
+      patchConversation(conversationId, (conv) => ({
+        ...conv,
+        messages: conv.messages.map((m) => (m.id === messageId ? patch(m) : m)),
+      }))
+    },
+    [patchConversation],
+  )
+
   const stopStreaming = useCallback(() => {
     streamRef.current?.cancel()
     streamRef.current = null
     setIsStreaming(false)
   }, [])
 
-  const startStream = useCallback(
-    (conversationId: string, prompt: string) => {
+  const startAssistant = useCallback(
+    (conversationId: string, history: ChatTurn[]) => {
       const assistantMessage: Message = {
         id: uid(),
         role: "assistant",
@@ -96,32 +94,42 @@ export function useChat() {
       }))
       setIsStreaming(true)
 
-      streamRef.current = streamMockReply(
-        prompt,
-        (chunk) => {
-          patchConversation(conversationId, (conv) => ({
-            ...conv,
-            messages: conv.messages.map((m) =>
-              m.id === assistantMessage.id ? { ...m, content: m.content + chunk } : m,
-            ),
-          }))
-        },
-        () => {
-          streamRef.current = null
-          setIsStreaming(false)
-          // 若流被中途取消导致内容为空，补一个停止提示
-          patchConversation(conversationId, (conv) => ({
-            ...conv,
-            messages: conv.messages.map((m) =>
-              m.id === assistantMessage.id && m.content === ""
-                ? { ...m, content: STOPPED_HINT }
-                : m,
-            ),
-          }))
-        },
-      )
+      const onChunk = (chunk: string) => {
+        patchMessage(conversationId, assistantMessage.id, (m) => ({
+          ...m,
+          content: m.content + chunk,
+        }))
+      }
+
+      const onDone = () => {
+        streamRef.current = null
+        setIsStreaming(false)
+        // 流被中途取消且内容为空时，补一个停止提示
+        patchMessage(conversationId, assistantMessage.id, (m) =>
+          m.content === "" ? { ...m, content: STOPPED_HINT } : m,
+        )
+      }
+
+      const onError = (error: Error) => {
+        streamRef.current = null
+        setIsStreaming(false)
+        patchMessage(conversationId, assistantMessage.id, (m) =>
+          m.content === "" ? { ...m, content: `⚠️ ${error.message}` } : m,
+        )
+      }
+
+      streamRef.current = streamChatCompletion({
+        settings,
+        messages: history,
+        conversationId,
+        requestId: `dmzz_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        userId,
+        onChunk,
+        onDone,
+        onError,
+      })
     },
-    [patchConversation],
+    [patchConversation, patchMessage, settings, userId],
   )
 
   const sendMessage = useCallback(
@@ -146,6 +154,15 @@ export function useChat() {
         }))
       }
 
+      // 送给模型的历史：既有消息 + 本轮用户输入（不含助手占位与错误提示行）
+      const prior = conversations.find((c) => c.id === targetId)?.messages ?? []
+      const history: ChatTurn[] = [...prior, userMessage]
+        .filter((m) => !m.content.startsWith("⚠️"))
+        .map((m) => ({
+          role: m.role,
+          content: m.content,
+        }))
+
       patchConversation(targetId, (conv) => ({
         ...conv,
         title: conv.title === DEFAULT_TITLE ? truncateTitle(text) : conv.title,
@@ -153,9 +170,9 @@ export function useChat() {
         updatedAt: Date.now(),
       }))
 
-      startStream(targetId, text)
+      startAssistant(targetId, history)
     },
-    [activeId, conversations, patchConversation, startStream],
+    [activeId, conversations, patchConversation, startAssistant],
   )
 
   const newConversation = useCallback(() => {
@@ -207,8 +224,6 @@ export function useChat() {
     conversations,
     activeConversation,
     activeId,
-    model,
-    setModel,
     isStreaming,
     sendMessage,
     stopStreaming,
