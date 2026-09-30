@@ -1,0 +1,11 @@
+appId: com.dmzz.aichat
+productName: DMZZ AI Chat
+directories:
+  output: release
+files:
+  - dist/**
+  - electron/**
+win:
+  icon: build/icon.ico
+  target:
+    - dir
