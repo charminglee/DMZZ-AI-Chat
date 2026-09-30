@@ -53,12 +53,11 @@ export function findGroup(
   return null
 }
 
-/** 组内按首选容量取变体；缺失时退回 32K，再退回第一个 */
+/** 组内按首选容量取变体；缺失时退回该组最大容量（变体已按容量升序） */
 export function resolveVariant(group: ModelGroup, preferredSize?: string): ModelVariant {
   return (
     group.variants.find((v) => v.size === preferredSize) ??
-    group.variants.find((v) => v.size === "32K") ??
-    group.variants[0]
+    group.variants[group.variants.length - 1]
   )
 }
 

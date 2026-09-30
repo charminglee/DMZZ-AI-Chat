@@ -48,73 +48,84 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* 月光紫梦 · 浅色（柔和淡紫白，品牌紫为主色） */
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
+    --background: #faf7ff;
+    --foreground: #2a2140;
+    --card: #ffffff;
+    --card-foreground: #2a2140;
+    --popover: #ffffff;
+    --popover-foreground: #2a2140;
+    --primary: #7b5cf6;
+    --primary-foreground: #ffffff;
+    --secondary: #f1eaff;
+    --secondary-foreground: #3a2d5c;
+    --muted: #f3edff;
+    --muted-foreground: #6f6392;
+    --accent: #efe7ff;
+    --accent-foreground: #3a2d5c;
+    --destructive: #dc2626;
+    --border: #e6dcf8;
+    --input: #e6dcf8;
+    --ring: #7b5cf6;
+    --chart-1: #7b5cf6;
+    --chart-2: #c9a0ff;
+    --chart-3: #4b2e83;
+    --chart-4: #ffd6f6;
+    --chart-5: #a695c9;
     --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    --sidebar: #f5f0ff;
+    --sidebar-foreground: #2a2140;
+    --sidebar-primary: #7b5cf6;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #ece2ff;
+    --sidebar-accent-foreground: #3a2d5c;
+    --sidebar-border: #e6dcf8;
+    --sidebar-ring: #7b5cf6;
+    /* 品牌渐变与光晕 */
+    --brand-from: #4b2e83;
+    --brand-mid: #7b5cf6;
+    --brand-to: #c9a0ff;
+    --brand-glow: #c9a0ff40;
 }
 
+/* 月光紫梦 · 深色（对应主题参考：深紫夜色 + 紫罗兰 + 薰衣草 + 粉光晕） */
 .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    --background: #0f0b1a;
+    --foreground: #ece6ff;
+    --card: #171129;
+    --card-foreground: #ece6ff;
+    --popover: #1a1330;
+    --popover-foreground: #ece6ff;
+    --primary: #7b5cf6;
+    --primary-foreground: #ffffff;
+    --secondary: #241a3f;
+    --secondary-foreground: #e6dcff;
+    --muted: #201838;
+    --muted-foreground: #a695c9;
+    --accent: #2a1f4a;
+    --accent-foreground: #f0e9ff;
+    --destructive: #ef4444;
+    --border: #ffffff1a;
+    --input: #ffffff1f;
+    --ring: #7b5cf6;
+    --chart-1: #7b5cf6;
+    --chart-2: #c9a0ff;
+    --chart-3: #4b2e83;
+    --chart-4: #ffd6f6;
+    --chart-5: #a695c9;
+    --sidebar: #130e22;
+    --sidebar-foreground: #ece6ff;
+    --sidebar-primary: #7b5cf6;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #241a3f;
+    --sidebar-accent-foreground: #f0e9ff;
+    --sidebar-border: #ffffff14;
+    --sidebar-ring: #7b5cf6;
+    --brand-from: #4b2e83;
+    --brand-mid: #7b5cf6;
+    --brand-to: #c9a0ff;
+    --brand-glow: #c9a0ff59;
 }
 
 @layer base {
@@ -152,4 +163,38 @@
   ::-webkit-scrollbar-corner {
     background: transparent;
   }
+
+  /* 拖拽调整侧边栏宽度时：禁用过渡/选中，光标统一为列宽调整 */
+  html.sidebar-resizing,
+  html.sidebar-resizing * {
+    cursor: col-resize !important;
+    user-select: none !important;
+    transition: none !important;
+  }
+
+  /* 锁定折叠/展开全程高度不变的按钮（品牌、访客）。
+     放必须放 base 层：对于 !important 声明，靠前的层优先，
+     才能压过 utilities 层里组件的 group-data-[collapsible=icon]:size-8! */
+  [data-slot="sidebar"] [data-fix-height] {
+    height: 3rem !important;
+  }
+}
+
+/* 品牌渐变（应用图标 / Logo / 助手头像统一使用，配色见 --brand-* 变量） */
+.brand-gradient {
+  background-image: linear-gradient(
+    135deg,
+    var(--brand-from) 0%,
+    var(--brand-mid) 55%,
+    var(--brand-to) 100%
+  );
+}
+
+/* 用户侧渐变（比品牌渐变浅一档，用于区分） */
+.user-gradient {
+  background-image: linear-gradient(
+    135deg,
+    var(--brand-mid) 0%,
+    var(--brand-to) 100%
+  );
 }

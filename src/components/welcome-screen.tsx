@@ -36,7 +36,7 @@ const SUGGESTIONS = [
 export function WelcomeScreen({ onPick, modelName }: WelcomeScreenProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-4 py-10">
-      <div className="flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-lg shadow-violet-500/25">
+      <div className="flex size-14 items-center justify-center rounded-2xl brand-gradient text-white shadow-lg shadow-[var(--brand-glow)]">
         <Sparkles className="size-7" />
       </div>
       <h1 className="mt-5 text-2xl font-semibold tracking-tight">

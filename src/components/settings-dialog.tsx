@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { Check, Eye, EyeOff, Loader2, RefreshCw, Wifi } from "lucide-react"
-import { streamChatCompletion } from "@/lib/api"
+import { testApiConnection } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -16,13 +16,16 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import type { SettingsController } from "@/hooks/use-settings"
 import { findGroup, resolveVariant, sizeSummary } from "@/lib/model-groups"
+import { groupBySeries } from "@/lib/model-series"
 import { cn } from "@/lib/utils"
 import type { ApiMode, ApiSettings } from "@/lib/types"
 
@@ -77,27 +80,9 @@ export function SettingsDialog({ open, onOpenChange, controller }: SettingsDialo
   const testConnection = () => {
     setTesting(true)
     setTestResult(null)
-    let collected = ""
-    streamChatCompletion({
-      settings: { ...draft, maxTokens: 60 },
-      messages: [{ role: "user", content: "你好，请回复「连接正常」四个字" }],
-      conversationId: "dmzz_connection_test",
-      requestId: `dmzz_test_${Date.now()}`,
-      userId: controller.userId,
-      onChunk: (text) => {
-        collected += text
-      },
-      onDone: () => {
-        setTesting(false)
-        setTestResult({
-          ok: collected.trim().length > 0,
-          text: collected.trim().slice(0, 60) || "（模型没有返回内容）",
-        })
-      },
-      onError: (error) => {
-        setTesting(false)
-        setTestResult({ ok: false, text: error.message })
-      },
+    testApiConnection(draft, controller.userId, (result) => {
+      setTesting(false)
+      setTestResult(result)
     })
   }
 
@@ -190,14 +175,25 @@ export function SettingsDialog({ open, onOpenChange, controller }: SettingsDialo
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="选择模型" />
                   </SelectTrigger>
-                  <SelectContent className="max-h-72">
-                    {modelGroups.map((group) => (
-                      <SelectItem key={group.key} value={group.key}>
-                        <span className="flex w-full items-center justify-between gap-3">
-                          <span>{group.name}</span>
-                          <span className="text-xs text-muted-foreground">{sizeSummary(group)}</span>
-                        </span>
-                      </SelectItem>
+                  <SelectContent
+                    position="popper"
+                    sideOffset={6}
+                    className="max-h-[min(16rem,var(--radix-select-content-available-height))] w-[var(--radix-select-trigger-width)]"
+                  >
+                    {groupBySeries(modelGroups).map(({ series, groups }) => (
+                      <SelectGroup key={series.key}>
+                        <SelectLabel className="text-xs text-muted-foreground">
+                          {series.name} · {series.tagline}
+                        </SelectLabel>
+                        {groups.map((group) => (
+                          <SelectItem key={group.key} value={group.key}>
+                            <span className="flex w-full items-center justify-between gap-3">
+                              <span>{group.name}</span>
+                              <span className="text-xs text-muted-foreground">{sizeSummary(group)}</span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
                     ))}
                   </SelectContent>
                 </Select>

@@ -220,6 +220,54 @@ export function useChat(settings: ApiSettings, userId: string) {
     [patchConversation],
   )
 
+  /** 重新生成：回到最后一条用户消息，丢弃其后的助手回复并重新请求 */
+  const regenerate = useCallback(() => {
+    const conv = conversations.find((c) => c.id === activeId)
+    if (!conv || streamRef.current) return
+
+    let lastUserIndex = -1
+    for (let i = conv.messages.length - 1; i >= 0; i--) {
+      if (conv.messages[i].role === "user") {
+        lastUserIndex = i
+        break
+      }
+    }
+    if (lastUserIndex < 0) return
+
+    const kept = conv.messages.slice(0, lastUserIndex + 1)
+    patchConversation(conv.id, (c) => ({ ...c, messages: kept, updatedAt: Date.now() }))
+
+    const history: ChatTurn[] = kept
+      .filter((m) => !m.content.startsWith("⚠️"))
+      .map((m) => ({ role: m.role, content: m.content }))
+
+    startAssistant(conv.id, history)
+  }, [activeId, conversations, patchConversation, startAssistant])
+
+  /** 编辑用户消息：替换内容，丢弃其后的所有消息并重新生成 */
+  const editMessage = useCallback(
+    (messageId: string, content: string) => {
+      const conv = conversations.find((c) => c.id === activeId)
+      const text = content.trim()
+      if (!conv || !text || streamRef.current) return
+
+      const index = conv.messages.findIndex((m) => m.id === messageId)
+      if (index < 0) return
+
+      const kept = conv.messages
+        .slice(0, index + 1)
+        .map((m) => (m.id === messageId ? { ...m, content: text } : m))
+      patchConversation(conv.id, (c) => ({ ...c, messages: kept, updatedAt: Date.now() }))
+
+      const history: ChatTurn[] = kept
+        .filter((m) => !m.content.startsWith("⚠️"))
+        .map((m) => ({ role: m.role, content: m.content }))
+
+      startAssistant(conv.id, history)
+    },
+    [activeId, conversations, patchConversation, startAssistant],
+  )
+
   return {
     conversations,
     activeConversation,
@@ -227,6 +275,8 @@ export function useChat(settings: ApiSettings, userId: string) {
     isStreaming,
     sendMessage,
     stopStreaming,
+    regenerate,
+    editMessage,
     newConversation,
     selectConversation,
     deleteConversation,

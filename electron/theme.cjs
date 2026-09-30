@@ -1,7 +1,7 @@
 const { BrowserWindow, ipcMain, nativeTheme } = require("electron")
 
-// 与界面 --background 对应的近似值：浅色 oklch(1 0 0) / 深色 oklch(0.145 0 0)
-const THEME_BG = { dark: "#0a0a0a", light: "#ffffff" }
+// 与界面 --background 对应的近似值：浅色 #faf7ff / 深色 #0f0b1a（月光紫梦）
+const THEME_BG = { dark: "#0f0b1a", light: "#faf7ff" }
 
 function currentBackground() {
   return nativeTheme.shouldUseDarkColors ? THEME_BG.dark : THEME_BG.light

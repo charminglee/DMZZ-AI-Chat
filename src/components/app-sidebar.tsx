@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
+  Camera,
   Check,
-  ChevronsUpDown,
   LogOut,
   MessageSquare,
   Monitor,
@@ -16,10 +16,12 @@ import {
   Sparkles,
   Sun,
   Trash2,
+  UserPen,
 } from "lucide-react"
 import {
   Avatar,
   AvatarFallback,
+  AvatarImage,
 } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -41,6 +43,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import { UserAvatarDialog, UserNameDialog } from "@/components/user-profile-dialogs"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import {
   Sidebar,
   SidebarContent,
@@ -53,9 +61,9 @@ import {
   SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { SidebarResizer } from "@/components/sidebar-resizer"
 import { cn } from "@/lib/utils"
 import type { ChatController } from "@/hooks/use-chat"
 import type { Conversation } from "@/lib/types"
@@ -86,12 +94,25 @@ interface AppSidebarProps {
     toggle: () => void
   }
   onOpenSettings: () => void
+  sidebarWidth: {
+    width: number
+    setWidth: (width: number) => void
+    persist: () => void
+  }
+  immersive: boolean
+  userName: string
+  avatar: string
+  onUpdateProfile: (patch: { userName?: string; avatar?: string }) => void
 }
 
-export function AppSidebar({ chat, theme, onOpenSettings }: AppSidebarProps) {
+export function AppSidebar({ chat, theme, onOpenSettings, sidebarWidth, immersive, userName, avatar, onUpdateProfile }: AppSidebarProps) {
   const [query, setQuery] = useState("")
   const [renaming, setRenaming] = useState<Conversation | null>(null)
   const [renameValue, setRenameValue] = useState("")
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const [recentOpen, setRecentOpen] = useState(false)
+  const [nameDialogOpen, setNameDialogOpen] = useState(false)
+  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState<Conversation | null>(null)
   const { state, toggleSidebar } = useSidebar()
   const collapsed = state === "collapsed"
@@ -120,6 +141,12 @@ export function AppSidebar({ chat, theme, onOpenSettings }: AppSidebarProps) {
       .map((label) => ({ label, items: map.get(label) ?? [] }))
   }, [chat.conversations, query])
 
+  /** 折叠态弹出列表：按最近更新排序 */
+  const recentConversations = useMemo(
+    () => [...chat.conversations].sort((a, b) => b.updatedAt - a.updatedAt),
+    [chat.conversations],
+  )
+
   const confirmRename = () => {
     if (renaming) chat.renameConversation(renaming.id, renameValue)
     setRenaming(null)
@@ -127,19 +154,28 @@ export function AppSidebar({ chat, theme, onOpenSettings }: AppSidebarProps) {
 
   return (
     <>
-    <Sidebar collapsible="icon">
+    <Sidebar
+      collapsible="icon"
+      className={cn(
+        "transition-opacity duration-300",
+        immersive && "pointer-events-none opacity-0",
+      )}
+    >
+      {/* 图标模式下补足内边距，让头部总高与展开态一致（64px），
+          品牌方块与下方按钮在折叠/展开时零位移 */}
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             {/* 品牌 Logo 即侧栏开关：悬停切换为收起/展开图标 */}
             <SidebarMenuButton
               size="lg"
+              data-fix-height
               tooltip={collapsed ? "展开侧边栏" : "收起侧边栏"}
               aria-label={collapsed ? "展开侧边栏" : "收起侧边栏"}
               onClick={toggleSidebar}
-              className="transition-transform active:scale-[0.97]"
+              className="pl-0 transition-transform active:scale-[0.97]"
             >
-              <div className="group/icon relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-sm shadow-violet-500/30">
+              <div className="group/icon relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg brand-gradient text-white shadow-sm shadow-[var(--brand-glow)]">
                 <Sparkles
                   className={cn(
                     "absolute size-4 transition-all duration-300 ease-out",
@@ -179,89 +215,162 @@ export function AppSidebar({ chat, theme, onOpenSettings }: AppSidebarProps) {
                 <SidebarMenuButton
                   tooltip="新建对话"
                   onClick={chat.newConversation}
-                  className="bg-primary text-primary-foreground hover:bg-primary/90"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/80 active:text-primary-foreground"
                 >
                   <Plus />
                   <span>新建对话</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
-            <div className="relative mt-2 group-data-[collapsible=icon]:hidden">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="搜索对话..."
-                className="h-8 pl-8 text-sm"
-              />
+            {/* 展开态为搜索框；折叠态为同名位置的搜索按钮（点击展开并聚焦搜索）。
+                用 key 触发重挂载以重放渐入动画（display 切换无法过渡透明度） */}
+            <div
+              key={`search-${collapsed ? "icon" : "full"}`}
+              className="mt-2 animate-in fade-in duration-200 group-data-[collapsible=icon]:hidden"
+            >
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  ref={searchInputRef}
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="搜索对话..."
+                  className="h-8 pl-8 text-sm"
+                />
+              </div>
+            </div>
+            <button
+              type="button"
+              aria-label="搜索对话"
+              title="搜索对话"
+              onClick={() => {
+                toggleSidebar()
+                requestAnimationFrame(() => searchInputRef.current?.focus())
+              }}
+              className="mt-2 hidden size-8 animate-in fade-in items-center justify-center rounded-md text-muted-foreground duration-200 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:flex"
+            >
+              <Search className="size-4" />
+            </button>
+
+            {/* 折叠态：单个"最近对话"入口，与上方按钮同为 8px 间距；点击从右侧弹出列表 */}
+            <div
+              key={`recent-${collapsed ? "icon" : "full"}`}
+              className="hidden animate-in fade-in duration-200 group-data-[collapsible=icon]:block"
+            >
+              <Popover open={recentOpen} onOpenChange={setRecentOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="最近对话"
+                    title="最近对话"
+                    className={cn(
+                      "mt-2 flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors",
+                      "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                      "data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground",
+                    )}
+                  >
+                    <MessageSquare className="size-4" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent side="right" align="start" sideOffset={8} className="w-72 p-0">
+                  <p className="border-b px-3 py-2 text-xs font-medium text-muted-foreground">
+                    最近对话
+                  </p>
+                  <div className="max-h-80 overflow-y-auto p-1">
+                    {recentConversations.length === 0 ? (
+                      <p className="px-3 py-6 text-center text-xs text-muted-foreground">
+                        还没有对话记录
+                      </p>
+                    ) : (
+                      recentConversations.map((conv) => (
+                        <button
+                          key={conv.id}
+                          type="button"
+                          onClick={() => {
+                            chat.selectConversation(conv.id)
+                            setRecentOpen(false)
+                          }}
+                          className={cn(
+                            "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
+                            "hover:bg-accent hover:text-accent-foreground",
+                            conv.id === chat.activeId && "bg-accent font-medium text-accent-foreground",
+                          )}
+                        >
+                          <MessageSquare className="size-4 shrink-0 text-muted-foreground" />
+                          <span className="truncate">{conv.title}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </SidebarGroupContent>
         </SidebarGroup>
 
         <SidebarGroup className="flex min-h-0 flex-1 flex-col gap-0 pb-0">
           <SidebarGroupContent className="min-h-0 flex-1">
-            <div className="h-full overflow-y-auto px-2 pb-2">
-              {groups.length === 0 ? (
-                <div className="flex h-full flex-col items-center justify-center gap-2 py-10 text-center group-data-[collapsible=icon]:hidden">
-                  <MessageSquare className="size-8 text-muted-foreground/50" />
-                  <p className="text-sm text-muted-foreground">
-                    {query ? "没有匹配的对话" : "还没有对话记录"}
-                  </p>
-                  {!query && (
-                    <p className="text-xs text-muted-foreground/70">
-                      点击上方「新建对话」开始
+            <div className="h-full overflow-y-auto pb-2">
+              {/* 展开态：按日期分组的完整列表（key 触发重挂载以重放渐入动画） */}
+              <div
+                key={`list-${collapsed ? "icon" : "full"}`}
+                className="animate-in fade-in duration-200 group-data-[collapsible=icon]:hidden"
+              >
+                {groups.length === 0 ? (
+                  <div className="flex h-full flex-col items-center justify-center gap-2 py-10 text-center">
+                    <MessageSquare className="size-8 text-muted-foreground/50" />
+                    <p className="text-sm text-muted-foreground">
+                      {query ? "没有匹配的对话" : "还没有对话记录"}
                     </p>
-                  )}
-                </div>
-              ) : (
-                groups.map((group) => (
-                  <div key={group.label} className="mb-2">
-                    <SidebarGroupLabel className="px-2 group-data-[collapsible=icon]:hidden">
-                      {group.label}
-                    </SidebarGroupLabel>
-                    <SidebarMenu>
-                      {group.items.map((conv) => (
-                        <SidebarMenuItem key={conv.id}>
-                          <SidebarMenuButton
-                            isActive={conv.id === chat.activeId}
-                            tooltip={conv.title}
-                            onClick={() => chat.selectConversation(conv.id)}
-                          >
-                            <MessageSquare />
-                            <span className="truncate">{conv.title}</span>
-                          </SidebarMenuButton>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <SidebarMenuAction
-                                showOnHover
-                                className="group-data-[collapsible=icon]:hidden"
-                              >
-                                <MoreHorizontal />
-                              </SidebarMenuAction>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent side="right" align="start" className="w-40">
-                              <DropdownMenuItem
-                                onClick={() => setRenaming(conv)}
-                              >
-                                <Pencil className="size-4" />
-                                重命名
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                variant="destructive"
-                                onClick={() => setDeleting(conv)}
-                              >
-                                <Trash2 className="size-4" />
-                                删除对话
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </SidebarMenuItem>
-                      ))}
-                    </SidebarMenu>
+                    {!query && (
+                      <p className="text-xs text-muted-foreground/70">
+                        点击上方「新建对话」开始
+                      </p>
+                    )}
                   </div>
-                ))
-              )}
+                ) : (
+                  groups.map((group) => (
+                    <div key={group.label} className="mb-2">
+                      <SidebarGroupLabel className="px-2">{group.label}</SidebarGroupLabel>
+                      <SidebarMenu>
+                        {group.items.map((conv) => (
+                          <SidebarMenuItem key={conv.id}>
+                            <SidebarMenuButton
+                              isActive={conv.id === chat.activeId}
+                              tooltip={conv.title}
+                              onClick={() => chat.selectConversation(conv.id)}
+                            >
+                              <MessageSquare />
+                              <span className="truncate">{conv.title}</span>
+                            </SidebarMenuButton>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <SidebarMenuAction showOnHover>
+                                  <MoreHorizontal />
+                                </SidebarMenuAction>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent side="right" align="start" className="w-40">
+                                <DropdownMenuItem onClick={() => setRenaming(conv)}>
+                                  <Pencil className="size-4" />
+                                  重命名
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  onClick={() => setDeleting(conv)}
+                                >
+                                  <Trash2 className="size-4" />
+                                  删除对话
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </SidebarMenuItem>
+                        ))}
+                      </SidebarMenu>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -272,25 +381,32 @@ export function AppSidebar({ chat, theme, onOpenSettings }: AppSidebarProps) {
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <SidebarMenuButton size="lg">
+                <SidebarMenuButton size="lg" data-fix-height className="pl-0">
                   <Avatar className="size-8">
-                    <AvatarFallback className="bg-gradient-to-br from-sky-500 to-indigo-500 text-xs font-medium text-white">
-                      访客
+                    {avatar && <AvatarImage src={avatar} alt={userName} className="object-cover" />}
+                    <AvatarFallback className="user-gradient text-xs font-medium text-white">
+                      {userName.slice(0, 1) || "友"}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="flex flex-col gap-0.5 leading-none">
-                    <span className="font-medium">访客用户</span>
-                    <span className="text-xs text-muted-foreground">
-                      guest@dmzz.ai
-                    </span>
+                  <div className="flex min-w-0 flex-col gap-0.5 leading-none">
+                    <span className="truncate font-medium">{userName}</span>
+                    <span className="text-xs text-muted-foreground">本地账户</span>
                   </div>
-                  <ChevronsUpDown className="ml-auto size-4 text-muted-foreground" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent side="top" align="start" className="w-52">
-                <DropdownMenuLabel className="text-xs text-muted-foreground">
-                  guest@dmzz.ai
+                <DropdownMenuLabel className="truncate text-xs text-muted-foreground">
+                  {userName} · 本地账户
                 </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setNameDialogOpen(true)}>
+                  <UserPen className="size-4" />
+                  修改称呼
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setAvatarDialogOpen(true)}>
+                  <Camera className="size-4" />
+                  修改头像
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel className="text-xs text-muted-foreground">
                   主题
@@ -313,21 +429,39 @@ export function AppSidebar({ chat, theme, onOpenSettings }: AppSidebarProps) {
                   </DropdownMenuRadioItem>
                 </DropdownMenuRadioGroup>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={onOpenSettings}>
-                  <Settings className="size-4" />
-                  设置
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
+                {/* 折叠为图标栏时齿轮按钮不显示，菜单内保留设置入口 */}
+                {collapsed && (
+                  <>
+                    <DropdownMenuItem onClick={onOpenSettings}>
+                      <Settings className="size-4" />
+                      设置
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 <DropdownMenuItem disabled>
                   <LogOut className="size-4" />
                   退出登录
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            {/* 设置入口：常驻在访客卡片右侧 */}
+            <SidebarMenuAction
+              aria-label="设置"
+              title="设置"
+              className="peer-data-[size=lg]/menu-button:top-3.5"
+              onClick={onOpenSettings}
+            >
+              <Settings />
+            </SidebarMenuAction>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
-      <SidebarRail />
+      <SidebarResizer
+        width={sidebarWidth.width}
+        onWidthChange={sidebarWidth.setWidth}
+        onWidthCommit={sidebarWidth.persist}
+      />
       </Sidebar>
 
       <Dialog open={renaming !== null} onOpenChange={(open) => !open && setRenaming(null)}>
@@ -356,6 +490,20 @@ export function AppSidebar({ chat, theme, onOpenSettings }: AppSidebarProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <UserNameDialog
+        open={nameDialogOpen}
+        onOpenChange={setNameDialogOpen}
+        current={userName}
+        onSave={(name) => onUpdateProfile({ userName: name })}
+      />
+
+      <UserAvatarDialog
+        open={avatarDialogOpen}
+        onOpenChange={setAvatarDialogOpen}
+        current={avatar}
+        onSave={(next) => onUpdateProfile({ avatar: next })}
+      />
 
       <Dialog open={deleting !== null} onOpenChange={(open) => !open && setDeleting(null)}>
         <DialogContent className="sm:max-w-sm">

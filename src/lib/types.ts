@@ -34,11 +34,23 @@ export interface CharacterCard {
   system_prompt: string
 }
 
+/** 回复风格（v2 接口校验的枚举值） */
+export type StyleMode = "standard" | "creative" | "divergent"
+
+export const STYLE_OPTIONS: Array<{ value: StyleMode; label: string }> = [
+  { value: "standard", label: "标准" },
+  { value: "creative", label: "创意" },
+  { value: "divergent", label: "发散" },
+]
+
 export interface ApiSettings {
   mode: ApiMode
   token: string
   model: string
+  style: StyleMode
   userName: string
+  /** 头像：裁剪后的 data URL，空串表示使用默认渐变头像 */
+  avatar: string
   temperature: number
   maxTokens: number
   card: CharacterCard
@@ -59,8 +71,10 @@ export const DEFAULT_CARD: CharacterCard = {
 export const DEFAULT_SETTINGS: ApiSettings = {
   mode: "openai",
   token: DEFAULT_TOKEN,
-  model: "x-apex-surge-0505-16k",
+  model: "x-apex-surge-0505",
+  style: "standard",
   userName: "朋友",
+  avatar: "",
   temperature: 0.8,
   maxTokens: 6000,
   card: DEFAULT_CARD,

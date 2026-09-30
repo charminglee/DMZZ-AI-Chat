@@ -9,6 +9,8 @@ import { WelcomeScreen } from "@/components/welcome-screen"
 import { SettingsDialog } from "@/components/settings-dialog"
 import { useChat } from "@/hooks/use-chat"
 import { useSettings } from "@/hooks/use-settings"
+import { useSidebarWidth } from "@/hooks/use-sidebar-width"
+import { testApiConnection, type ConnectionTestResult } from "@/lib/api"
 
 const THEME_KEY = "dmzz-theme"
 
@@ -51,15 +53,46 @@ export default function App() {
   const settings = useSettings()
   const chat = useChat(settings.settings, settings.userId)
   const theme = useTheme()
+  const sidebarWidth = useSidebarWidth()
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [immersive, setImmersive] = useState(
+    () => localStorage.getItem("dmzz-immersive") === "1",
+  )
+
+  useEffect(() => {
+    localStorage.setItem("dmzz-immersive", immersive ? "1" : "0")
+  }, [immersive])
+
+  const testConnection = useCallback(
+    () =>
+      new Promise<ConnectionTestResult>((resolve) => {
+        testApiConnection(settings.settings, settings.userId, resolve)
+      }),
+    [settings.settings, settings.userId],
+  )
 
   const activeModel = settings.models.find((m) => m.id === settings.settings.model)
   const active = chat.activeConversation
 
   return (
     <TooltipProvider delayDuration={0}>
-      <SidebarProvider>
-        <AppSidebar chat={chat} theme={theme} onOpenSettings={() => setSettingsOpen(true)} />
+      <SidebarProvider
+        style={
+          {
+            "--sidebar-width": immersive ? "0px" : `${sidebarWidth.width}px`,
+          } as React.CSSProperties
+        }
+      >
+        <AppSidebar
+          chat={chat}
+          theme={theme}
+          onOpenSettings={() => setSettingsOpen(true)}
+          sidebarWidth={sidebarWidth}
+          immersive={immersive}
+          userName={settings.settings.userName}
+          avatar={settings.settings.avatar}
+          onUpdateProfile={(patch) => settings.updateSettings(patch)}
+        />
         <SidebarInset className="flex h-svh flex-col overflow-hidden">
           <ChatHeader
             title={chat.activeConversation?.title ?? "DMZZ AI"}
@@ -67,15 +100,22 @@ export default function App() {
             modelGroups={settings.modelGroups}
             modelsLoading={settings.modelsLoading}
             onModelChange={(model) => settings.updateSettings({ model })}
-            onOpenSettings={() => setSettingsOpen(true)}
+            style={settings.settings.style}
+            onStyleChange={(style) => settings.updateSettings({ style })}
+            apiMode={settings.settings.mode}
             dark={theme.dark}
             onToggleTheme={theme.toggle}
+            immersive={immersive}
+            onToggleImmersive={() => setImmersive((v) => !v)}
+            onTestConnection={testConnection}
           />
           <div className="flex min-h-0 flex-1 flex-col">
             {active && active.messages.length > 0 ? (
               <MessageList
                 conversation={active}
                 isStreaming={chat.isStreaming}
+                onRegenerate={chat.regenerate}
+                onEditMessage={chat.editMessage}
               />
             ) : (
               <WelcomeScreen
@@ -84,6 +124,7 @@ export default function App() {
               />
             )}
             <ChatInput
+              immersive={immersive}
               onSend={chat.sendMessage}
               onStop={chat.stopStreaming}
               isStreaming={chat.isStreaming}

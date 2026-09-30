@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react"
-import { ArrowUp, Paperclip, Square } from "lucide-react"
+import { ArrowUp, Square } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
@@ -8,11 +8,12 @@ interface ChatInputProps {
   onSend: (content: string) => void
   onStop: () => void
   isStreaming: boolean
+  immersive: boolean
 }
 
 const MAX_HEIGHT = 200
 
-export function ChatInput({ onSend, onStop, isStreaming }: ChatInputProps) {
+export function ChatInput({ onSend, onStop, isStreaming, immersive }: ChatInputProps) {
   const [value, setValue] = useState("")
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const composingRef = useRef(false)
@@ -58,22 +59,14 @@ export function ChatInput({ onSend, onStop, isStreaming }: ChatInputProps) {
             }}
           />
           <div className="flex items-center justify-between px-3 pb-2.5 pt-1">
-            <div className="flex items-center gap-1">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-8 rounded-full text-muted-foreground"
-                aria-label="添加附件（演示）"
-                title="添加附件（演示）"
-                onClick={() => setValue((v) => v)}
-              >
-                <Paperclip className="size-4" />
-              </Button>
-              <span className="hidden text-xs text-muted-foreground/70 sm:block">
-                Enter 发送 · Shift + Enter 换行
-              </span>
-            </div>
+            <span
+              className={cn(
+                "hidden pl-1.5 text-xs text-muted-foreground/70 transition-opacity duration-300 sm:block",
+                immersive && "opacity-0",
+              )}
+            >
+              Enter 发送 · Shift + Enter 换行
+            </span>
             {isStreaming ? (
               <Button
                 type="button"
@@ -103,9 +96,6 @@ export function ChatInput({ onSend, onStop, isStreaming }: ChatInputProps) {
             )}
           </div>
         </div>
-        <p className="mt-2 text-center text-xs text-muted-foreground/70">
-          AI 生成内容仅供参考
-        </p>
       </div>
     </div>
   )

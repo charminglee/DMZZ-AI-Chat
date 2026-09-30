@@ -58,6 +58,36 @@ export interface StreamHandle {
   cancel: () => void
 }
 
+export interface ConnectionTestResult {
+  ok: boolean
+  text: string
+}
+
+/** 快速验证 Token / 模型 / 网络：发起一次极短请求，把结果回调出去 */
+export function testApiConnection(
+  settings: ApiSettings,
+  userId: string,
+  onResult: (result: ConnectionTestResult) => void,
+): void {
+  let collected = ""
+  streamChatCompletion({
+    settings: { ...settings, maxTokens: 60 },
+    messages: [{ role: "user", content: "你好，请回复「连接正常」四个字" }],
+    conversationId: "dmzz_connection_test",
+    requestId: `dmzz_test_${Date.now()}`,
+    userId,
+    onChunk: (text) => {
+      collected += text
+    },
+    onDone: () =>
+      onResult({
+        ok: collected.trim().length > 0,
+        text: collected.trim().slice(0, 60) || "（模型没有返回内容）",
+      }),
+    onError: (error) => onResult({ ok: false, text: error.message }),
+  })
+}
+
 /** 历史上限，避免超出模型上下文 */
 const MAX_HISTORY = 24
 
@@ -69,7 +99,7 @@ function buildBody(options: StreamChatOptions): Record<string, unknown> {
     // v2 角色卡接口：角色设定、用户称呼、上下文与多轮消息
     return {
       model: settings.model,
-      style: "standard",
+      style: settings.style,
       user_name: settings.userName || "朋友",
       user_id: userId,
       conversation_id: conversationId,

@@ -136,15 +136,23 @@ function polyDist(px, py, poly) {
 }
 
 // ---------- 渐变色 ----------
+/** 多色标分段插值：沿对角方向按 SVG 各 stop 的位置取色 */
 function gradientColor(px, py) {
   const t = Math.min(Math.max((px + py) / (2 * (SIZE - 1)), 0), 1)
-  const s0 = stops[0]
-  const s1 = stops[stops.length - 1]
-  return [
-    s0.c[0] + (s1.c[0] - s0.c[0]) * t,
-    s0.c[1] + (s1.c[1] - s0.c[1]) * t,
-    s0.c[2] + (s1.c[2] - s0.c[2]) * t,
-  ]
+  for (let i = 1; i < stops.length; i++) {
+    const a = stops[i - 1]
+    const b = stops[i]
+    if (t <= b.t || i === stops.length - 1) {
+      const span = b.t - a.t
+      const k = span <= 0 ? 0 : Math.min(Math.max((t - a.t) / span, 0), 1)
+      return [
+        a.c[0] + (b.c[0] - a.c[0]) * k,
+        a.c[1] + (b.c[1] - a.c[1]) * k,
+        a.c[2] + (b.c[2] - a.c[2]) * k,
+      ]
+    }
+  }
+  return stops[stops.length - 1].c
 }
 
 // ---------- 逐像素渲染 ----------
