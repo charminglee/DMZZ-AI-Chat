@@ -1,4 +1,4 @@
-import type { ApiSettings } from "@/lib/types"
+import type { ApiSettings, SiteCard } from "@/lib/types"
 import type { ChatTurn, StreamHandle } from "@/lib/api"
 
 /**
@@ -14,6 +14,8 @@ export interface DzmmBridge {
   login: () => Promise<{ ok: boolean; name?: string | null; reason?: string }>
   createChat: (cardId: number) => Promise<string>
   getModels: () => Promise<unknown>
+  /** 角色卡详情（card.getById 原始响应；不存在时为 null） */
+  getCard: (cardId: number) => Promise<unknown>
   chat: (reqId: string, payload: unknown) => Promise<void>
   cancel: () => Promise<boolean>
   onEvent: (callback: (event: SiteStreamEvent) => void) => () => void
@@ -303,4 +305,46 @@ export async function listSiteModels(): Promise<
 /** 查询站点登录态的轻量包装（设置界面用） */
 export function getSiteStatus() {
   return window.desktop?.dzmm?.getStatus() ?? Promise.resolve({ loggedIn: false })
+}
+
+/** card.getById 原始响应里我们关心的字段 */
+interface RawSiteCard {
+  id?: number
+  name?: string
+  cardFilename?: string
+  creator?: string
+  creatorFullName?: string
+  creatorNotes?: string
+  tags?: unknown
+  likesCount?: number
+  commentsCount?: number
+  popularityScore?: string | number
+  publishedAt?: string
+  createdAt?: string
+}
+
+/**
+ * 按角色卡 ID 获取站点卡牌信息（公开数据，无需登录）。
+ * 卡不存在 / 已被隐藏时返回 null。
+ */
+export async function fetchSiteCard(cardId: number): Promise<SiteCard | null> {
+  const bridge = window.desktop?.dzmm
+  if (!bridge) {
+    throw new Error("角色卡功能仅桌面版可用（需通过 Electron 启动）")
+  }
+  const raw = (await bridge.getCard(cardId)) as RawSiteCard | null
+  if (!raw || typeof raw.id !== "number") return null
+  return {
+    id: raw.id,
+    name: raw.name?.trim() || `角色卡 ${raw.id}`,
+    avatar: raw.cardFilename ?? "",
+    creator: raw.creatorFullName?.trim() || raw.creator?.trim() || "",
+    description: (raw.creatorNotes ?? "").trim(),
+    tags: Array.isArray(raw.tags) ? raw.tags.filter((t): t is string => typeof t === "string") : [],
+    likes: raw.likesCount ?? 0,
+    comments: raw.commentsCount ?? 0,
+    popularity: Number(raw.popularityScore ?? 0) || 0,
+    publishedAt: raw.publishedAt ?? raw.createdAt ?? null,
+    savedAt: Date.now(),
+  }
 }

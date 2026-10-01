@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import {
   Camera,
   Check,
+  IdCard,
   LogOut,
   MessageSquare,
   Monitor,
@@ -85,6 +86,16 @@ function groupLabelOf(timestamp: number): string {
 
 const GROUP_ORDER = ["今天", "昨天", "近 7 天", "更早"]
 
+/**
+ * 侧栏顶层视图入口（新建对话 / 角色卡 / 后续新增入口）的统一选中样式：
+ * 仅当前视图用品牌主色填充，其余入口保持默认样式。
+ */
+function viewEntryClass(active: boolean): string {
+  return active
+    ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/80 active:text-primary-foreground"
+    : ""
+}
+
 interface AppSidebarProps {
   chat: ChatController
   theme: {
@@ -103,9 +114,15 @@ interface AppSidebarProps {
   userName: string
   avatar: string
   onUpdateProfile: (patch: { userName?: string; avatar?: string }) => void
+  /** 主区视图：对话 / 角色卡 */
+  activeView: "chat" | "cards"
+  onOpenCards: () => void
+  /** 切回对话视图并执行操作（侧栏入口统一走这里） */
+  onNewConversation: () => void
+  onSelectConversation: (id: string) => void
 }
 
-export function AppSidebar({ chat, theme, onOpenSettings, sidebarWidth, immersive, userName, avatar, onUpdateProfile }: AppSidebarProps) {
+export function AppSidebar({ chat, theme, onOpenSettings, sidebarWidth, immersive, userName, avatar, onUpdateProfile, activeView, onOpenCards, onNewConversation, onSelectConversation }: AppSidebarProps) {
   const [query, setQuery] = useState("")
   const [renaming, setRenaming] = useState<Conversation | null>(null)
   const [renameValue, setRenameValue] = useState("")
@@ -231,11 +248,21 @@ export function AppSidebar({ chat, theme, onOpenSettings, sidebarWidth, immersiv
               <SidebarMenuItem>
                 <SidebarMenuButton
                   tooltip="新建对话"
-                  onClick={chat.newConversation}
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/80 active:text-primary-foreground"
+                  onClick={onNewConversation}
+                  className={viewEntryClass(activeView === "chat")}
                 >
                   <Plus />
                   <span className="sidebar-text">新建对话</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  tooltip="角色卡"
+                  onClick={onOpenCards}
+                  className={cn("mt-2", viewEntryClass(activeView === "cards"))}
+                >
+                  <IdCard />
+                  <span className="sidebar-text">角色卡</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -315,13 +342,13 @@ export function AppSidebar({ chat, theme, onOpenSettings, sidebarWidth, immersiv
                           key={conv.id}
                           type="button"
                           onClick={() => {
-                            chat.selectConversation(conv.id)
+                            onSelectConversation(conv.id)
                             setRecentOpen(false)
                           }}
                           className={cn(
                             "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
                             "hover:bg-accent hover:text-accent-foreground",
-                            conv.id === chat.activeId && "bg-accent font-medium text-accent-foreground",
+                            activeView === "chat" && conv.id === chat.activeId && "bg-accent font-medium text-accent-foreground",
                           )}
                         >
                           <MessageSquare className="size-4 shrink-0 text-muted-foreground" />
@@ -364,9 +391,9 @@ export function AppSidebar({ chat, theme, onOpenSettings, sidebarWidth, immersiv
                         {group.items.map((conv) => (
                           <SidebarMenuItem key={conv.id}>
                             <SidebarMenuButton
-                              isActive={conv.id === chat.activeId}
+                              isActive={activeView === "chat" && conv.id === chat.activeId}
                               tooltip={conv.title}
-                              onClick={() => chat.selectConversation(conv.id)}
+                              onClick={() => onSelectConversation(conv.id)}
                             >
                               <MessageSquare />
                               <span className="sidebar-text truncate">{conv.title}</span>

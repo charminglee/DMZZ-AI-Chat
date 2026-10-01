@@ -89,7 +89,9 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn("flex flex-col gap-2", className)}
+      // min-w-0：弹窗内容为 grid，未约束的网格子项会被长标题（不可断行文本）
+      // 的 min-content 撑宽，导致内容横向溢出弹窗边界、盖住关闭按钮
+      className={cn("flex min-w-0 flex-col gap-2", className)}
       {...props}
     />
   )

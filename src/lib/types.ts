@@ -36,6 +36,24 @@ export interface CharacterCard {
   system_prompt: string
 }
 
+/** 站点角色卡（dzmm.ai /character/<id>，card.getById 归一化后的本地存储结构） */
+export interface SiteCard {
+  id: number
+  name: string
+  /** 头像图 URL（源站签名链，可能过期；加载失败时回退首字头像） */
+  avatar: string
+  creator: string
+  description: string
+  tags: string[]
+  likes: number
+  comments: number
+  /** 热度值（站点 popularityScore，展示时格式化为 万） */
+  popularity: number
+  publishedAt: string | null
+  /** 本地保存时间 */
+  savedAt: number
+}
+
 /** 回复风格（v2 接口校验的枚举值） */
 export type StyleMode = "standard" | "creative" | "divergent"
 

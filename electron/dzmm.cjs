@@ -197,6 +197,21 @@ async function getModels() {
   return result
 }
 
+/** 角色卡信息（card.getById；公开数据，游客状态即可读取；不存在/不可见时返回 null） */
+async function getCard(cardId) {
+  await waitReady()
+  const input = encodeURIComponent(JSON.stringify({ json: { cardId } }))
+  const script = `fetch('/api/trpc/card.getById?input=${input}')
+    .then((r) => r.json())
+    .then((j) => JSON.stringify((j && j.result && j.result.data && j.result.data.json) || null))
+    .catch((e) => JSON.stringify({ error: String(e) }))`
+  const result = await runPageScript(script)
+  if (result && result.error) {
+    throw new Error(result.error)
+  }
+  return result
+}
+
 /** 注入流式桥：在页面里 POST /api/chat，逐行上报 SSE 事件 */
 async function startChat(reqId, payload) {
   await waitReady()
@@ -286,6 +301,11 @@ function initDzmmBridge(mainWindowGetter) {
   )
   ipcMain.handle("dzmm:get-models", () =>
     getModels().catch((e) => {
+      throw new Error(e.message)
+    }),
+  )
+  ipcMain.handle("dzmm:get-card", (_e, cardId) =>
+    getCard(cardId).catch((e) => {
       throw new Error(e.message)
     }),
   )

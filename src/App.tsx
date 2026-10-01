@@ -3,16 +3,19 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { BackgroundLayer } from "@/components/background-layer"
+import { CharacterCards } from "@/components/character-cards"
 import { ChatHeader } from "@/components/chat-header"
 import { MessageList } from "@/components/message-list"
 import { ChatInput } from "@/components/chat-input"
 import { WelcomeScreen } from "@/components/welcome-screen"
 import { SettingsDialog } from "@/components/settings-dialog"
+import { useCharacterCards } from "@/hooks/use-character-cards"
 import { useChat } from "@/hooks/use-chat"
 import { useSettings } from "@/hooks/use-settings"
 import { useSidebarWidth } from "@/hooks/use-sidebar-width"
 import { testApiConnection, type ConnectionTestResult } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import type { SiteCard } from "@/lib/types"
 
 const THEME_KEY = "dmzz-theme"
 
@@ -54,11 +57,24 @@ export function useTheme() {
 export default function App() {
   const settings = useSettings()
   const chat = useChat(settings.settings, settings.userId)
+  const cardLibrary = useCharacterCards()
   const theme = useTheme()
   const sidebarWidth = useSidebarWidth()
   const [settingsOpen, setSettingsOpen] = useState(false)
+  // 主区视图：对话 / 角色卡（每次启动都从对话开始）
+  const [view, setView] = useState<"chat" | "cards">("chat")
   // 每次启动都从普通模式开始，不恢复上次的沉浸状态
   const [immersive, setImmersive] = useState(false)
+
+  /** 以某张角色卡开始新对话：切换网页通道并绑定站点卡 ID */
+  const startCardChat = useCallback(
+    (card: SiteCard) => {
+      settings.updateSettings({ siteCardId: String(card.id), mode: "web" })
+      chat.newConversation()
+      setView("chat")
+    },
+    [settings, chat],
+  )
 
   const testConnection = useCallback(
     () =>
@@ -91,6 +107,16 @@ export default function App() {
           userName={settings.settings.userName}
           avatar={settings.settings.avatar}
           onUpdateProfile={(patch) => settings.updateSettings(patch)}
+          activeView={view}
+          onOpenCards={() => setView("cards")}
+          onNewConversation={() => {
+            chat.newConversation()
+            setView("chat")
+          }}
+          onSelectConversation={(id) => {
+            chat.selectConversation(id)
+            setView("chat")
+          }}
         />
         <SidebarInset
           className={cn(
@@ -99,7 +125,7 @@ export default function App() {
           )}
         >
           <ChatHeader
-            title={chat.activeConversation?.title ?? "DMZZ AI"}
+            title={view === "cards" ? "角色卡" : chat.activeConversation?.title ?? "DMZZ AI"}
             model={settings.settings.model}
             modelGroups={settings.modelGroups}
             modelsLoading={settings.modelsLoading}
@@ -118,25 +144,37 @@ export default function App() {
             onTestConnection={testConnection}
           />
           <div className="flex min-h-0 flex-1 flex-col">
-            {active && active.messages.length > 0 ? (
-              <MessageList
-                conversation={active}
-                isStreaming={chat.isStreaming}
-                onRegenerate={chat.regenerate}
-                onEditMessage={chat.editMessage}
+            {view === "cards" ? (
+              <CharacterCards
+                cards={cardLibrary.cards}
+                onAdd={cardLibrary.addCard}
+                onRemove={cardLibrary.removeCard}
+                currentCardId={settings.settings.siteCardId}
+                onStartChat={startCardChat}
               />
             ) : (
-              <WelcomeScreen
-                onPick={chat.sendMessage}
-                modelName={activeModel?.name ?? "未选择模型"}
-              />
+              <>
+                {active && active.messages.length > 0 ? (
+                  <MessageList
+                    conversation={active}
+                    isStreaming={chat.isStreaming}
+                    onRegenerate={chat.regenerate}
+                    onEditMessage={chat.editMessage}
+                  />
+                ) : (
+                  <WelcomeScreen
+                    onPick={chat.sendMessage}
+                    modelName={activeModel?.name ?? "未选择模型"}
+                  />
+                )}
+                <ChatInput
+                  immersive={immersive}
+                  onSend={chat.sendMessage}
+                  onStop={chat.stopStreaming}
+                  isStreaming={chat.isStreaming}
+                />
+              </>
             )}
-            <ChatInput
-              immersive={immersive}
-              onSend={chat.sendMessage}
-              onStop={chat.stopStreaming}
-              isStreaming={chat.isStreaming}
-            />
           </div>
         </SidebarInset>
       </SidebarProvider>

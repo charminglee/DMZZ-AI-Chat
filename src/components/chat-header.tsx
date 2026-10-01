@@ -321,7 +321,8 @@ export function ChatHeader({
             immersive && "pointer-events-none opacity-0",
           )}
           onClick={onToggleTheme}
-          aria-label="切换主题"
+          aria-label={dark ? "切换到浅色主题" : "切换到深色主题"}
+          title={dark ? "切换到浅色主题" : "切换到深色主题"}
         >
           {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
         </Button>
