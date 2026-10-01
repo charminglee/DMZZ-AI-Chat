@@ -172,6 +172,23 @@
     transition: none !important;
   }
 
+  /* 侧边栏收起/展开（及拖拽）期间：文本改用硬裁切。
+     text-overflow: ellipsis 会在每一帧重新排版并移动省略号，
+     看起来像文字在边缘跳动；硬裁切时字形位置不变，只被边缘扫过 */
+  html.sidebar-animating [data-slot="sidebar"] span,
+  html.sidebar-resizing [data-slot="sidebar"] span {
+    text-overflow: clip !important;
+  }
+
+  /* 侧边栏文本（标题、品牌、称呼）：动画期间隐藏，
+     结束后淡入——淡入时布局已稳定，省略号一次到位，不会"跳一下" */
+  .sidebar-text {
+    transition: opacity 150ms ease;
+  }
+  html.sidebar-animating .sidebar-text {
+    opacity: 0;
+  }
+
   /* 锁定折叠/展开全程高度不变的按钮（品牌、访客）。
      放必须放 base 层：对于 !important 声明，靠前的层优先，
      才能压过 utilities 层里组件的 group-data-[collapsible=icon]:size-8! */

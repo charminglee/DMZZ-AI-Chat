@@ -35,7 +35,7 @@ export function ChatInput({ onSend, onStop, isStreaming, immersive }: ChatInputP
   }
 
   return (
-    <div className="shrink-0 bg-background pb-4 pt-1">
+    <div className={cn("shrink-0 bg-background pb-4 pt-1", immersive && "bg-transparent")}>
       <div className="mx-auto w-full max-w-3xl px-4">
         <div className="rounded-3xl border bg-card shadow-sm transition-shadow focus-within:shadow-md">
           <Textarea

@@ -1,18 +1,24 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { listApiModels } from "@/lib/api"
+import { listSiteModels } from "@/lib/site-channel"
 import { groupModels } from "@/lib/model-groups"
 import { DEFAULT_SETTINGS, type ApiSettings, type ModelInfo } from "@/lib/types"
 
 const SETTINGS_KEY = "dmzz-settings-v1"
 const MODELS_CACHE_KEY = "dmzz-api-models-v1"
+const SITE_MODELS_CACHE_KEY = "dmzz-site-models-v1"
 const USER_ID_KEY = "dmzz-user-id"
+
+const MODES: ApiSettings["mode"][] = ["openai", "card", "web"]
 
 function loadSettings(): ApiSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY)
     if (!raw) return DEFAULT_SETTINGS
     const parsed = JSON.parse(raw) as Partial<ApiSettings>
-    const mode = parsed.mode === "openai" || parsed.mode === "card" ? parsed.mode : DEFAULT_SETTINGS.mode
+    const mode = MODES.includes(parsed.mode as ApiSettings["mode"])
+      ? (parsed.mode as ApiSettings["mode"])
+      : DEFAULT_SETTINGS.mode
     return {
       ...DEFAULT_SETTINGS,
       ...parsed,
@@ -24,9 +30,9 @@ function loadSettings(): ApiSettings {
   }
 }
 
-function loadCachedModels(): ModelInfo[] {
+function loadCachedModels(key: string): ModelInfo[] {
   try {
-    const raw = localStorage.getItem(MODELS_CACHE_KEY)
+    const raw = localStorage.getItem(key)
     const parsed = raw ? (JSON.parse(raw) as ModelInfo[]) : []
     return Array.isArray(parsed) ? parsed : []
   } catch {
@@ -46,7 +52,10 @@ function getUserId(): string {
 
 export function useSettings() {
   const [settings, setSettings] = useState<ApiSettings>(loadSettings)
-  const [apiModels, setApiModels] = useState<ModelInfo[]>(loadCachedModels)
+  const modelsCacheKey = settings.mode === "web" ? SITE_MODELS_CACHE_KEY : MODELS_CACHE_KEY
+  const [apiModels, setApiModels] = useState<ModelInfo[]>(() =>
+    loadCachedModels(loadSettings().mode === "web" ? SITE_MODELS_CACHE_KEY : MODELS_CACHE_KEY),
+  )
   const [modelsLoading, setModelsLoading] = useState(false)
   const [modelsError, setModelsError] = useState<string | null>(null)
   const userId = useMemo(getUserId, [])
@@ -57,16 +66,22 @@ export function useSettings() {
 
   const refreshModels = useCallback(
     async (token = settings.token) => {
-      if (!token.trim()) {
-        setModelsError("未配置 API Token")
-        return
-      }
       setModelsLoading(true)
       setModelsError(null)
       try {
-        const models = await listApiModels(token)
+        let models: ModelInfo[]
+        if (settings.mode === "web") {
+          // 网页通道：模型列表来自站点（含 32K 变体与深度思考标记），不依赖 API Token
+          models = await listSiteModels()
+        } else {
+          if (!token.trim()) {
+            setModelsError("未配置 API Token")
+            return
+          }
+          models = await listApiModels(token)
+        }
         setApiModels(models)
-        localStorage.setItem(MODELS_CACHE_KEY, JSON.stringify(models))
+        localStorage.setItem(modelsCacheKey, JSON.stringify(models))
         // 当前模型不在列表里时，自动切到第一个可用模型
         setSettings((prev) =>
           models.some((m) => m.id === prev.model) || models.length === 0
@@ -79,17 +94,23 @@ export function useSettings() {
         setModelsLoading(false)
       }
     },
-    [settings.token],
+    [settings.mode, modelsCacheKey, settings.token],
   )
 
-  // 启动时若有 token，后台刷新模型列表（有缓存则静默更新）
+  // 模式切换或有 Token 时后台刷新模型列表；有缓存则先展示缓存
   useEffect(() => {
-    if (settings.token.trim()) {
+    const cached = loadCachedModels(
+      settings.mode === "web" ? SITE_MODELS_CACHE_KEY : MODELS_CACHE_KEY,
+    )
+    if (cached.length > 0) setApiModels(cached)
+    if (settings.mode === "web") {
+      if (window.desktop?.dzmm) void refreshModels()
+    } else if (settings.token.trim()) {
       void refreshModels(settings.token)
     }
-    // 仅在 Token 变化时触发
+    // 仅在模式 / Token 变化时触发
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.token])
+  }, [settings.mode, settings.token])
 
   const updateSettings = useCallback((patch: Partial<ApiSettings>) => {
     setSettings((prev) => ({ ...prev, ...patch }))

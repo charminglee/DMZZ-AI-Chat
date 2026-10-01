@@ -116,6 +116,21 @@ export function AppSidebar({ chat, theme, onOpenSettings, sidebarWidth, immersiv
   const [deleting, setDeleting] = useState<Conversation | null>(null)
   const { state, toggleSidebar } = useSidebar()
   const collapsed = state === "collapsed"
+  const firstRender = useRef(true)
+
+  // 收起/展开动画期间给根元素打标记：让文本改为硬裁切（见 index.css），
+  // 避免省略号逐帧重排导致文字"跳动"
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false
+      return
+    }
+    document.documentElement.classList.add("sidebar-animating")
+    const timer = window.setTimeout(() => {
+      document.documentElement.classList.remove("sidebar-animating")
+    }, 260)
+    return () => window.clearTimeout(timer)
+  }, [state])
 
   useEffect(() => {
     if (renaming) setRenameValue(renaming.title)
@@ -157,7 +172,9 @@ export function AppSidebar({ chat, theme, onOpenSettings, sidebarWidth, immersiv
     <Sidebar
       collapsible="icon"
       className={cn(
-        "transition-opacity duration-300",
+        // 合并宽度与透明度过渡：直接写 transition-opacity 会覆盖组件自带的
+        // transition-[left,right,width]，导致收起动画消失
+        "transition-[left,right,width,opacity]",
         immersive && "pointer-events-none opacity-0",
       )}
     >
@@ -173,7 +190,7 @@ export function AppSidebar({ chat, theme, onOpenSettings, sidebarWidth, immersiv
               tooltip={collapsed ? "展开侧边栏" : "收起侧边栏"}
               aria-label={collapsed ? "展开侧边栏" : "收起侧边栏"}
               onClick={toggleSidebar}
-              className="pl-0 transition-transform active:scale-[0.97]"
+              className="pl-0 transition-transform active:scale-[0.97] group-data-[collapsible=icon]:overflow-visible"
             >
               <div className="group/icon relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg brand-gradient text-white shadow-sm shadow-[var(--brand-glow)]">
                 <Sparkles
@@ -198,7 +215,7 @@ export function AppSidebar({ chat, theme, onOpenSettings, sidebarWidth, immersiv
                   )}
                 />
               </div>
-              <div className="flex flex-col gap-0.5 leading-none">
+              <div className="sidebar-text flex flex-col gap-0.5 leading-none group-data-[collapsible=icon]:hidden">
                 <span className="text-base font-semibold">DMZZ AI</span>
                 <span className="text-xs text-muted-foreground">智能对话助手</span>
               </div>
@@ -218,39 +235,50 @@ export function AppSidebar({ chat, theme, onOpenSettings, sidebarWidth, immersiv
                   className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/80 active:text-primary-foreground"
                 >
                   <Plus />
-                  <span>新建对话</span>
+                  <span className="sidebar-text">新建对话</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
-            {/* 展开态为搜索框；折叠态为同名位置的搜索按钮（点击展开并聚焦搜索）。
-                用 key 触发重挂载以重放渐入动画（display 切换无法过渡透明度） */}
+            {/* 搜索：与「新建对话」同款收起逻辑——容器随侧栏一起收窄、
+                输入框被 overflow 裁掉，放大镜位置全程不变。
+                折叠态整块作为按钮：点击展开侧栏并聚焦输入框 */}
             <div
-              key={`search-${collapsed ? "icon" : "full"}`}
-              className="mt-2 animate-in fade-in duration-200 group-data-[collapsible=icon]:hidden"
-            >
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  ref={searchInputRef}
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="搜索对话..."
-                  className="h-8 pl-8 text-sm"
-                />
-              </div>
-            </div>
-            <button
-              type="button"
-              aria-label="搜索对话"
-              title="搜索对话"
+              role={collapsed ? "button" : undefined}
+              tabIndex={collapsed ? 0 : undefined}
+              aria-label={collapsed ? "搜索对话" : undefined}
+              title={collapsed ? "搜索对话" : undefined}
               onClick={() => {
+                if (!collapsed) return
                 toggleSidebar()
                 requestAnimationFrame(() => searchInputRef.current?.focus())
               }}
-              className="mt-2 hidden size-8 animate-in fade-in items-center justify-center rounded-md text-muted-foreground duration-200 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:flex"
+              onKeyDown={(e) => {
+                if (collapsed && (e.key === "Enter" || e.key === " ")) {
+                  e.preventDefault()
+                  toggleSidebar()
+                  requestAnimationFrame(() => searchInputRef.current?.focus())
+                }
+              }}
+              className={cn(
+                "relative mt-2 h-8 overflow-hidden transition-colors duration-200",
+                collapsed
+                  ? "cursor-pointer rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  : "rounded-lg border border-input bg-transparent dark:bg-input/30 focus-within:border-ring",
+              )}
             >
-              <Search className="size-4" />
-            </button>
+              <Search className="pointer-events-none absolute left-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                ref={searchInputRef}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="搜索对话..."
+                tabIndex={collapsed ? -1 : undefined}
+                className={cn(
+                  "h-8 border-0 bg-transparent pl-8 text-sm shadow-none focus-visible:border-0 focus-visible:ring-0 dark:bg-transparent",
+                  collapsed && "pointer-events-none",
+                )}
+              />
+            </div>
 
             {/* 折叠态：单个"最近对话"入口，与上方按钮同为 8px 间距；点击从右侧弹出列表 */}
             <div
@@ -341,7 +369,7 @@ export function AppSidebar({ chat, theme, onOpenSettings, sidebarWidth, immersiv
                               onClick={() => chat.selectConversation(conv.id)}
                             >
                               <MessageSquare />
-                              <span className="truncate">{conv.title}</span>
+                              <span className="sidebar-text truncate">{conv.title}</span>
                             </SidebarMenuButton>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -381,14 +409,18 @@ export function AppSidebar({ chat, theme, onOpenSettings, sidebarWidth, immersiv
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <SidebarMenuButton size="lg" data-fix-height className="pl-0">
+                <SidebarMenuButton
+                  size="lg"
+                  data-fix-height
+                  className="pl-0 group-data-[collapsible=icon]:overflow-visible"
+                >
                   <Avatar className="size-8">
                     {avatar && <AvatarImage src={avatar} alt={userName} className="object-cover" />}
                     <AvatarFallback className="user-gradient text-xs font-medium text-white">
                       {userName.slice(0, 1) || "友"}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="flex min-w-0 flex-col gap-0.5 leading-none">
+                  <div className="sidebar-text flex min-w-0 flex-col gap-0.5 leading-none group-data-[collapsible=icon]:hidden">
                     <span className="truncate font-medium">{userName}</span>
                     <span className="text-xs text-muted-foreground">本地账户</span>
                   </div>

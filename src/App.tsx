@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
+import { BackgroundLayer } from "@/components/background-layer"
 import { ChatHeader } from "@/components/chat-header"
 import { MessageList } from "@/components/message-list"
 import { ChatInput } from "@/components/chat-input"
@@ -11,6 +12,7 @@ import { useChat } from "@/hooks/use-chat"
 import { useSettings } from "@/hooks/use-settings"
 import { useSidebarWidth } from "@/hooks/use-sidebar-width"
 import { testApiConnection, type ConnectionTestResult } from "@/lib/api"
+import { cn } from "@/lib/utils"
 
 const THEME_KEY = "dmzz-theme"
 
@@ -55,13 +57,8 @@ export default function App() {
   const theme = useTheme()
   const sidebarWidth = useSidebarWidth()
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [immersive, setImmersive] = useState(
-    () => localStorage.getItem("dmzz-immersive") === "1",
-  )
-
-  useEffect(() => {
-    localStorage.setItem("dmzz-immersive", immersive ? "1" : "0")
-  }, [immersive])
+  // 每次启动都从普通模式开始，不恢复上次的沉浸状态
+  const [immersive, setImmersive] = useState(false)
 
   const testConnection = useCallback(
     () =>
@@ -76,6 +73,8 @@ export default function App() {
 
   return (
     <TooltipProvider delayDuration={0}>
+      {/* 沉浸模式背景：本地背景图片服务出图则铺满窗口，否则保持主题色 */}
+      <BackgroundLayer active={immersive} />
       <SidebarProvider
         style={
           {
@@ -93,7 +92,12 @@ export default function App() {
           avatar={settings.settings.avatar}
           onUpdateProfile={(patch) => settings.updateSettings(patch)}
         />
-        <SidebarInset className="flex h-svh flex-col overflow-hidden">
+        <SidebarInset
+          className={cn(
+            "flex h-svh flex-col overflow-hidden transition-colors duration-300",
+            immersive && "bg-transparent",
+          )}
+        >
           <ChatHeader
             title={chat.activeConversation?.title ?? "DMZZ AI"}
             model={settings.settings.model}
@@ -103,6 +107,10 @@ export default function App() {
             style={settings.settings.style}
             onStyleChange={(style) => settings.updateSettings({ style })}
             apiMode={settings.settings.mode}
+            siteDeepThinking={settings.settings.siteDeepThinking}
+            siteMemoryEnhance={settings.settings.siteMemoryEnhance}
+            onSiteDeepThinkingChange={(on) => settings.updateSettings({ siteDeepThinking: on })}
+            onSiteMemoryEnhanceChange={(on) => settings.updateSettings({ siteMemoryEnhance: on })}
             dark={theme.dark}
             onToggleTheme={theme.toggle}
             immersive={immersive}

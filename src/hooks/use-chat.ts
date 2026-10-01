@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { streamChatCompletion, type ChatTurn, type StreamHandle } from "@/lib/api"
+import { streamSiteChat } from "@/lib/site-channel"
 import type { ApiSettings, Conversation, Message } from "@/lib/types"
 
 const STORAGE_KEY = "dmzz-chat-state-v1"
@@ -118,18 +119,33 @@ export function useChat(settings: ApiSettings, userId: string) {
         )
       }
 
-      streamRef.current = streamChatCompletion({
-        settings,
-        messages: history,
-        conversationId,
-        requestId: `dmzz_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-        userId,
-        onChunk,
-        onDone,
-        onError,
-      })
+      if (settings.mode === "web") {
+        // 网页通道：站点对话 id 挂在本地对话上，首次发送时创建
+        const siteChatId = conversations.find((c) => c.id === conversationId)?.siteChatId ?? null
+        streamRef.current = streamSiteChat({
+          settings,
+          messages: history,
+          siteChatId,
+          onSiteChatId: (id) =>
+            patchConversation(conversationId, (conv) => ({ ...conv, siteChatId: id })),
+          onChunk,
+          onDone,
+          onError,
+        })
+      } else {
+        streamRef.current = streamChatCompletion({
+          settings,
+          messages: history,
+          conversationId,
+          requestId: `dmzz_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          userId,
+          onChunk,
+          onDone,
+          onError,
+        })
+      }
     },
-    [patchConversation, patchMessage, settings, userId],
+    [conversations, patchConversation, patchMessage, settings, userId],
   )
 
   const sendMessage = useCallback(

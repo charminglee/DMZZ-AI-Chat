@@ -25,6 +25,11 @@ interface ChatHeaderProps {
   style: StyleMode
   onStyleChange: (style: StyleMode) => void
   apiMode: ApiMode
+  /** 网页通道：深度思考 / 记忆增强开关 */
+  siteDeepThinking: boolean
+  siteMemoryEnhance: boolean
+  onSiteDeepThinkingChange: (on: boolean) => void
+  onSiteMemoryEnhanceChange: (on: boolean) => void
   dark: boolean
   onToggleTheme: () => void
   immersive: boolean
@@ -88,6 +93,10 @@ export function ChatHeader({
   style,
   onStyleChange,
   apiMode,
+  siteDeepThinking,
+  siteMemoryEnhance,
+  onSiteDeepThinkingChange,
+  onSiteMemoryEnhanceChange,
   dark,
   onToggleTheme,
   immersive,
@@ -207,7 +216,7 @@ export function ChatHeader({
 
             <DropdownMenuSeparator />
 
-            {/* 固定区：上下文长度 + 风格 */}
+            {/* 固定区：上下文长度 + 网页通道开关 + 风格 */}
             <div className="space-y-2 p-1.5">
               {currentGroup && currentGroup.variants.length > 1 && (
                 <div>
@@ -218,6 +227,36 @@ export function ChatHeader({
                     onChange={onModelChange}
                   />
                 </div>
+              )}
+              {apiMode === "web" && (
+                <>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="px-0.5 text-xs font-medium text-muted-foreground">深度思考</p>
+                    <div className="w-24">
+                      <Segmented
+                        options={[
+                          { value: "off", label: "关" },
+                          { value: "on", label: "开" },
+                        ]}
+                        value={siteDeepThinking ? "on" : "off"}
+                        onChange={(value) => onSiteDeepThinkingChange(value === "on")}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="px-0.5 text-xs font-medium text-muted-foreground">记忆增强</p>
+                    <div className="w-24">
+                      <Segmented
+                        options={[
+                          { value: "off", label: "关" },
+                          { value: "on", label: "开" },
+                        ]}
+                        value={siteMemoryEnhance ? "on" : "off"}
+                        onChange={(value) => onSiteMemoryEnhanceChange(value === "on")}
+                      />
+                    </div>
+                  </div>
+                </>
               )}
               {apiMode === "card" && (
                 <div>

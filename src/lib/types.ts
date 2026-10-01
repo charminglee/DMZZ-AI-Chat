@@ -13,6 +13,8 @@ export interface Conversation {
   messages: Message[]
   createdAt: number
   updatedAt: number
+  /** 网页通道：该本地对话映射到的 dzmm.ai 站点对话 id（首次发消息时创建） */
+  siteChatId?: string
 }
 
 export interface ModelInfo {
@@ -22,8 +24,8 @@ export interface ModelInfo {
   badge?: string
 }
 
-/** 接入方式：OpenAI 兼容 v1 / 角色卡 v2 */
-export type ApiMode = "openai" | "card"
+/** 接入方式：OpenAI 兼容 v1 / 角色卡 v2 / dzmm.ai 网页通道 */
+export type ApiMode = "openai" | "card" | "web"
 
 export interface CharacterCard {
   name: string
@@ -54,6 +56,12 @@ export interface ApiSettings {
   temperature: number
   maxTokens: number
   card: CharacterCard
+  /** 网页通道：dzmm.ai 站点角色卡 ID（角色页地址里的数字） */
+  siteCardId: string
+  /** 网页通道：深度思考开关 */
+  siteDeepThinking: boolean
+  /** 网页通道：记忆增强开关 */
+  siteMemoryEnhance: boolean
 }
 
 /** 服务由用户提供；token 可在设置中更换 */
@@ -78,4 +86,7 @@ export const DEFAULT_SETTINGS: ApiSettings = {
   temperature: 0.8,
   maxTokens: 6000,
   card: DEFAULT_CARD,
+  siteCardId: "",
+  siteDeepThinking: false,
+  siteMemoryEnhance: false,
 }

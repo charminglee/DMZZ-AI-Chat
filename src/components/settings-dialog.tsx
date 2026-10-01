@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
-import { Check, Eye, EyeOff, Loader2, RefreshCw, Wifi } from "lucide-react"
+import { Check, Eye, EyeOff, Loader2, LogIn, RefreshCw, Wifi } from "lucide-react"
 import { testApiConnection } from "@/lib/api"
+import { getSiteStatus } from "@/lib/site-channel"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -38,6 +39,7 @@ interface SettingsDialogProps {
 const MODE_OPTIONS: Array<{ value: ApiMode; label: string; hint: string }> = [
   { value: "openai", label: "OpenAI 兼容 (v1)", hint: "通用 Chat Completions，messages 请求体" },
   { value: "card", label: "角色卡 (v2)", hint: "支持角色设定、用户称呼与多轮对话" },
+  { value: "web", label: "网页通道 (实验)", hint: "借助 dzmm.ai 登录态，支持深度思考与记忆增强" },
 ]
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -45,6 +47,96 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
     <p className="mb-2 text-xs font-medium tracking-wide text-muted-foreground">
       {children}
     </p>
+  )
+}
+
+/** 开/关胶囊开关（与上下文长度切换同一视觉语言） */
+function PillToggle({
+  on,
+  onClick,
+  children,
+}: {
+  on: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={on}
+      className={cn(
+        "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+        on
+          ? "border-primary/60 bg-primary/10 text-primary"
+          : "border-border text-muted-foreground hover:text-foreground",
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
+/** 网页通道登录状态行：进入网页模式时检查，可唤起登录窗口 */
+function SiteLoginRow() {
+  const [checking, setChecking] = useState(false)
+  const [logging, setLogging] = useState(false)
+  const [state, setState] = useState<{ loggedIn?: boolean; name?: string | null }>({})
+
+  const check = async () => {
+    if (!window.desktop?.dzmm) return
+    setChecking(true)
+    try {
+      setState(await getSiteStatus())
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  useEffect(() => {
+    void check()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const openLogin = async () => {
+    const bridge = window.desktop?.dzmm
+    if (!bridge) return
+    setLogging(true)
+    try {
+      const result = await bridge.login()
+      setState({ loggedIn: result.ok, name: result.name })
+    } finally {
+      setLogging(false)
+    }
+  }
+
+  if (!window.desktop?.dzmm) {
+    return (
+      <p className="text-xs text-destructive">网页通道仅桌面版可用（请使用 Electron 启动）</p>
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-3">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-7 gap-1.5 px-2.5 text-xs"
+        disabled={logging || checking || state.loggedIn}
+        onClick={() => void openLogin()}
+      >
+        {logging ? <Loader2 className="size-3.5 animate-spin" /> : <LogIn className="size-3.5" />}
+        {state.loggedIn ? "已登录" : "打开登录窗口"}
+      </Button>
+      <span className="min-w-0 text-xs text-muted-foreground">
+        {checking
+          ? "检查登录状态…"
+          : state.loggedIn
+            ? `已登录${state.name ? `：${state.name}` : ""}`
+            : "未登录（会弹出 dzmm.ai 窗口，登录后自动隐藏）"}
+      </span>
+    </div>
   )
 }
 
@@ -96,7 +188,9 @@ export function SettingsDialog({ open, onOpenChange, controller }: SettingsDialo
           </DialogDescription>
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto pr-1">
+        {/* px-1 + -mx-1：左右对称留出聚焦光晕(ring-3 是外发光)的绘制空间，
+            overflow-y-auto 会把 overflow-x 一并变为裁剪；负边距抵消 padding 保持对齐 */}
+        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-1 -mx-1">
           <section>
             <SectionTitle>接入方式</SectionTitle>
             <RadioGroup
@@ -125,8 +219,9 @@ export function SettingsDialog({ open, onOpenChange, controller }: SettingsDialo
             </RadioGroup>
           </section>
 
-          <section>
-            <SectionTitle>API Token</SectionTitle>
+          {draft.mode !== "web" && (
+            <section>
+              <SectionTitle>API Token</SectionTitle>
                 <div className="relative">
                   <Input
                     type={showToken ? "text" : "password"}
@@ -145,6 +240,7 @@ export function SettingsDialog({ open, onOpenChange, controller }: SettingsDialo
                   </button>
                 </div>
               </section>
+          )}
 
               <section>
                 <div className="mb-2 flex items-center justify-between">
@@ -224,6 +320,45 @@ export function SettingsDialog({ open, onOpenChange, controller }: SettingsDialo
                 )}
               </section>
 
+              {draft.mode === "web" && (
+                <section>
+                  <SectionTitle>网页通道</SectionTitle>
+                  <div className="space-y-3">
+                    <SiteLoginRow />
+                    <div className="space-y-1.5">
+                      <Label htmlFor="site-card" className="text-xs">站点角色卡 ID</Label>
+                      <Input
+                        id="site-card"
+                        value={draft.siteCardId}
+                        onChange={(e) => patch({ siteCardId: e.target.value.trim() })}
+                        placeholder="角色页地址里的数字，如 3613349"
+                        className="font-mono text-xs"
+                      />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-muted-foreground">深度思考</span>
+                      <PillToggle
+                        on={draft.siteDeepThinking}
+                        onClick={() => patch({ siteDeepThinking: !draft.siteDeepThinking })}
+                      >
+                        {draft.siteDeepThinking ? "开" : "关"}
+                      </PillToggle>
+                      <span className="ml-3 text-xs text-muted-foreground">记忆增强</span>
+                      <PillToggle
+                        on={draft.siteMemoryEnhance}
+                        onClick={() => patch({ siteMemoryEnhance: !draft.siteMemoryEnhance })}
+                      >
+                        {draft.siteMemoryEnhance ? "开" : "关"}
+                      </PillToggle>
+                    </div>
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                      通过内置隐藏浏览器使用你在 dzmm.ai
+                      的登录态调用站点接口，消耗网站积分、与网页同计费；支持深度思考与记忆增强。属非官方实验功能，网站改版可能失效。
+                    </p>
+                  </div>
+                </section>
+              )}
+
               {draft.mode === "card" && (
                 <>
                   <section>
@@ -273,8 +408,9 @@ export function SettingsDialog({ open, onOpenChange, controller }: SettingsDialo
                 </>
               )}
 
-              <section>
-                <SectionTitle>生成参数</SectionTitle>
+              {draft.mode !== "web" && (
+                <section>
+                  <SectionTitle>生成参数</SectionTitle>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label htmlFor="temperature" className="text-xs">
@@ -310,8 +446,10 @@ export function SettingsDialog({ open, onOpenChange, controller }: SettingsDialo
                   </div>
                 </div>
               </section>
+              )}
 
-              <section className="flex items-center gap-3">
+              {draft.mode !== "web" && (
+                <section className="flex items-center gap-3">
                 <Button
                   type="button"
                   variant="outline"
@@ -335,6 +473,7 @@ export function SettingsDialog({ open, onOpenChange, controller }: SettingsDialo
                   </span>
                 )}
               </section>
+              )}
         </div>
 
         <DialogFooter>
