@@ -26,4 +26,18 @@ contextBridge.exposeInMainWorld("desktop", {
       return () => ipcRenderer.removeListener("dzmm:event", handler)
     },
   },
+
+  // 主区内嵌浏览器视图（广场页；主进程 WebContentsView 渲染在渲染层之上）
+  siteView: {
+    show: (url) => ipcRenderer.invoke("site-view:show", url),
+    setBounds: (rect) => ipcRenderer.invoke("site-view:bounds", rect),
+    setVisible: (visible) => ipcRenderer.invoke("site-view:visible", visible),
+    reload: () => ipcRenderer.invoke("site-view:reload"),
+    /** 订阅加载状态事件；返回取消订阅函数 */
+    onState: (callback) => {
+      const handler = (_event, data) => callback(data)
+      ipcRenderer.on("site-view:state", handler)
+      return () => ipcRenderer.removeListener("site-view:state", handler)
+    },
+  },
 })

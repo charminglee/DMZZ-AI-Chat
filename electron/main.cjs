@@ -4,6 +4,7 @@ const net = require("node:net")
 const path = require("node:path")
 const { currentBackground, registerThemeSync } = require("./theme.cjs")
 const { initDzmmBridge } = require("./dzmm.cjs")
+const { initSiteViewBridge } = require("./site-view.cjs")
 
 let mainWindow = null
 
@@ -124,6 +125,7 @@ if (!app.requestSingleInstanceLock()) {
 
   registerThemeSync()
   initDzmmBridge(() => mainWindow)
+  initSiteViewBridge(() => mainWindow)
 
   app.whenReady().then(() => {
     createWindow()

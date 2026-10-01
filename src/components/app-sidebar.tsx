@@ -15,6 +15,7 @@ import {
   Search,
   Settings,
   Sparkles,
+  Store,
   Sun,
   Trash2,
   UserPen,
@@ -115,15 +116,16 @@ interface AppSidebarProps {
   userName: string
   avatar: string
   onUpdateProfile: (patch: { userName?: string; avatar?: string }) => void
-  /** 主区视图：对话 / 角色卡 */
-  activeView: "chat" | "cards"
+  /** 主区视图：对话 / 角色卡 / 广场 */
+  activeView: "chat" | "cards" | "plaza"
   onOpenCards: () => void
+  onOpenPlaza: () => void
   /** 切回对话视图并执行操作（侧栏入口统一走这里） */
   onNewConversation: () => void
   onSelectConversation: (id: string) => void
 }
 
-export function AppSidebar({ chat, theme, onOpenSettings, sidebarWidth, immersive, userName, avatar, onUpdateProfile, activeView, onOpenCards, onNewConversation, onSelectConversation }: AppSidebarProps) {
+export function AppSidebar({ chat, theme, onOpenSettings, sidebarWidth, immersive, userName, avatar, onUpdateProfile, activeView, onOpenCards, onOpenPlaza, onNewConversation, onSelectConversation }: AppSidebarProps) {
   const [query, setQuery] = useState("")
   const [renaming, setRenaming] = useState<Conversation | null>(null)
   const [renameValue, setRenameValue] = useState("")
@@ -277,6 +279,16 @@ export function AppSidebar({ chat, theme, onOpenSettings, sidebarWidth, immersiv
                 >
                   <IdCard />
                   <span className="sidebar-text">角色卡</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  tooltip="广场"
+                  onClick={onOpenPlaza}
+                  className={cn("mt-2", viewEntryClass(activeView === "plaza"))}
+                >
+                  <Store />
+                  <span className="sidebar-text">广场</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

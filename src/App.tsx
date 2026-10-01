@@ -8,6 +8,7 @@ import { ChatHeader } from "@/components/chat-header"
 import { MessageList } from "@/components/message-list"
 import { ChatInput } from "@/components/chat-input"
 import { WelcomeScreen } from "@/components/welcome-screen"
+import { SiteBrowser, PLAZA_URL } from "@/components/site-browser"
 import { SettingsDialog } from "@/components/settings-dialog"
 import { useCharacterCards } from "@/hooks/use-character-cards"
 import { useChat } from "@/hooks/use-chat"
@@ -61,8 +62,10 @@ export default function App() {
   const theme = useTheme()
   const sidebarWidth = useSidebarWidth()
   const [settingsOpen, setSettingsOpen] = useState(false)
-  // 主区视图：对话 / 角色卡（每次启动都从对话开始）
-  const [view, setView] = useState<"chat" | "cards">("chat")
+  // 主区视图：对话 / 角色卡 / 广场（每次启动都从对话开始）
+  const [view, setView] = useState<"chat" | "cards" | "plaza">("chat")
+  // 广场 webview 首次打开后常驻（切换视图只隐藏不卸载，保留浏览状态）
+  const [plazaOpened, setPlazaOpened] = useState(false)
   // 每次启动都从普通模式开始，不恢复上次的沉浸状态
   const [immersive, setImmersive] = useState(false)
 
@@ -109,6 +112,10 @@ export default function App() {
           onUpdateProfile={(patch) => settings.updateSettings(patch)}
           activeView={view}
           onOpenCards={() => setView("cards")}
+          onOpenPlaza={() => {
+            setPlazaOpened(true)
+            setView("plaza")
+          }}
           onNewConversation={() => {
             chat.newConversation()
             setView("chat")
@@ -125,7 +132,9 @@ export default function App() {
           )}
         >
           <ChatHeader
-            title={view === "cards" ? "角色卡" : chat.activeConversation?.title ?? "DMZZ AI"}
+            title={
+              view === "cards" ? "角色卡" : view === "plaza" ? "广场" : chat.activeConversation?.title ?? "DMZZ AI"
+            }
             model={settings.settings.model}
             modelGroups={settings.modelGroups}
             modelsLoading={settings.modelsLoading}
@@ -152,7 +161,7 @@ export default function App() {
                 currentCardId={settings.settings.siteCardId}
                 onStartChat={startCardChat}
               />
-            ) : (
+            ) : view === "chat" ? (
               <>
                 {active && active.messages.length > 0 ? (
                   <MessageList
@@ -174,6 +183,14 @@ export default function App() {
                   isStreaming={chat.isStreaming}
                 />
               </>
+            ) : null}
+            {/* 广场：内置浏览器视图，首次打开后常驻，切换视图只隐藏不卸载。
+                active 同时驱动主进程 WebContentsView 的可见性（它在渲染层之上，
+                设置弹窗打开时必须隐藏，否则会盖住弹窗） */}
+            {plazaOpened && (
+              <div className={cn("min-h-0 flex-1", view === "plaza" ? "flex" : "hidden")}>
+                <SiteBrowser url={PLAZA_URL} active={view === "plaza" && !settingsOpen} />
+              </div>
             )}
           </div>
         </SidebarInset>
