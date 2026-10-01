@@ -106,7 +106,7 @@ node scripts/build-desktop.mjs
 │   └── theme-test.cjs       # 主题同步的端到端验证脚本（含窗口截图）
 ├── electron-builder.yml     # 打包配置（win / dir 目标）
 ├── scripts/
-│   ├── generate-icon.mjs    # logo.svg → 图标 PNG（解析几何光栅化）
+│   ├── generate-icon.mjs    # build/icon.svg → 图标 PNG（解析几何光栅化）
 │   ├── png-to-ico.mjs       # PNG → ICO 封装
 │   └── build-desktop.mjs    # 打包编排（外部构建 + 移入 release）
 ├── release/win-unpacked/    # 打包产物（.gitignore）
