@@ -42,7 +42,7 @@ export function ChatInput({ onSend, onStop, isStreaming, immersive }: ChatInputP
             ref={textareaRef}
             value={value}
             rows={1}
-            placeholder="给 DMZZ AI 发送消息..."
+            placeholder="给 DZMM AI 发送消息..."
             className="max-h-[200px] min-h-0 resize-none border-0 bg-transparent px-4 pt-3.5 pb-1 text-[15px] leading-6 shadow-none focus-visible:border-0 focus-visible:ring-0 dark:bg-transparent"
             onChange={(e) => setValue(e.target.value)}
             onCompositionStart={() => {

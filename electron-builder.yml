@@ -1,5 +1,5 @@
-appId: com.dmzz.aichat
-productName: DMZZ AI Chat
+appId: com.dzmm.aichat
+productName: DZMM AI Chat
 directories:
   output: release
 files:

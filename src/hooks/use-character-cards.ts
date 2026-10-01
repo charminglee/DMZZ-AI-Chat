@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { fetchSiteCard } from "@/lib/site-channel"
 import type { SiteCard } from "@/lib/types"
 
-const CARDS_KEY = "dmzz-site-cards-v1"
+const CARDS_KEY = "dzmm-site-cards-v1"
 
 function loadCards(): SiteCard[] {
   try {

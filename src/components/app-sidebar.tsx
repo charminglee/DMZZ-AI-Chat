@@ -249,7 +249,7 @@ export function AppSidebar({ chat, theme, onOpenSettings, sidebarWidth, immersiv
                 />
               </div>
               <div className="sidebar-text flex flex-col gap-0.5 leading-none group-data-[collapsible=icon]:hidden">
-                <span className="text-base font-semibold">DMZZ AI</span>
+                <span className="text-base font-semibold">DZMM AI</span>
                 <span className="text-xs text-muted-foreground">智能对话助手</span>
               </div>
             </SidebarMenuButton>

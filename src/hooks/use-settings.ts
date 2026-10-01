@@ -4,10 +4,10 @@ import { listSiteModels } from "@/lib/site-channel"
 import { groupModels } from "@/lib/model-groups"
 import { DEFAULT_SETTINGS, type ApiSettings, type ModelInfo } from "@/lib/types"
 
-const SETTINGS_KEY = "dmzz-settings-v1"
-const MODELS_CACHE_KEY = "dmzz-api-models-v1"
-const SITE_MODELS_CACHE_KEY = "dmzz-site-models-v1"
-const USER_ID_KEY = "dmzz-user-id"
+const SETTINGS_KEY = "dzmm-settings-v1"
+const MODELS_CACHE_KEY = "dzmm-api-models-v1"
+const SITE_MODELS_CACHE_KEY = "dzmm-site-models-v1"
+const USER_ID_KEY = "dzmm-user-id"
 
 const MODES: ApiSettings["mode"][] = ["openai", "card", "web"]
 
@@ -44,7 +44,7 @@ function loadCachedModels(key: string): ModelInfo[] {
 function getUserId(): string {
   let id = localStorage.getItem(USER_ID_KEY)
   if (!id) {
-    id = `dmzz_${crypto.randomUUID().slice(0, 12)}`
+    id = `dzmm_${crypto.randomUUID().slice(0, 12)}`
     localStorage.setItem(USER_ID_KEY, id)
   }
   return id

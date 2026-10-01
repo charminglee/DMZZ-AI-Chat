@@ -18,7 +18,7 @@ import { testApiConnection, type ConnectionTestResult } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import type { SiteCard } from "@/lib/types"
 
-const THEME_KEY = "dmzz-theme"
+const THEME_KEY = "dzmm-theme"
 
 function readStoredMode(): ThemeMode {
   const saved = localStorage.getItem(THEME_KEY)
@@ -133,7 +133,7 @@ export default function App() {
         >
           <ChatHeader
             title={
-              view === "cards" ? "角色卡" : view === "plaza" ? "广场" : chat.activeConversation?.title ?? "DMZZ AI"
+              view === "cards" ? "角色卡" : view === "plaza" ? "广场" : chat.activeConversation?.title ?? "DZMM AI"
             }
             model={settings.settings.model}
             modelGroups={settings.modelGroups}

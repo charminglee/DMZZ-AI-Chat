@@ -23,12 +23,10 @@ export interface DzmmBridge {
   onEvent: (callback: (event: SiteStreamEvent) => void) => () => void
 }
 
-/** 站点积分/VIP 信息（解析自 /settings/credits 页面文本，字段可能缺省） */
+/** 站点积分/VIP 信息（来自站点 tRPC 接口，字段可能缺省） */
 export interface SiteCredits {
   loggedIn: boolean
-  /** 流式请求进行中，暂不能导航隐藏窗口读取 */
-  busy?: boolean
-  /** 积分余额（页面文本原样，如 "1,234.5"） */
+  /** 积分余额（如 "1,301.83"） */
   balance?: string
   /** VIP 等级（如 "VIP 2"） */
   vipLevel?: string
@@ -337,8 +335,8 @@ export async function getSiteCredits(force = false): Promise<SiteCredits> {
   const bridge = window.desktop?.dzmm
   if (!bridge) return { loggedIn: false }
   const data = await bridge.getCredits()
-  // 流式进行中（busy）或读取失败不写缓存，下次打开菜单重试
-  if (!data.busy && !data.error) {
+  // 读取失败不写缓存，下次打开菜单重试
+  if (!data.error) {
     creditsCache = { at: Date.now(), data }
   }
   return data

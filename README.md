@@ -1,4 +1,4 @@
-# DMZZ AI Chat
+# DZMM AI Chat
 
 使用 **React 19 + TypeScript + Vite + Tailwind CSS v4 + shadcn/ui** 搭建的 AI 聊天应用，主流左侧边栏布局，可打包为 Windows 桌面程序。接入真实 AI 服务：OpenAI 兼容接口与角色卡 API（v2），流式输出。
 
@@ -27,7 +27,7 @@ npm run preview
 > （导致 electron-builder 重命名失败 EPERM，严重时 dev server 自身崩溃 EBUSY），
 > 因此 [vite.config.ts](vite.config.ts) 已将 `release/` 与 `dist/` 排除出 HMR 监听。
 > 打包脚本 [scripts/build-desktop.mjs](scripts/build-desktop.mjs) 仍会先在工作区外的
-> `../dmzz-build-tmp` 完成打包再移入 `release/`，作为对其它文件监控（杀软、索引器）的兜底；
+> `../dzmm-build-tmp` 完成打包再移入 `release/`，作为对其它文件监控（杀软、索引器）的兜底；
 > 若目标目录被锁，会自动退化为「就地替换内容」。全程自动，无需手动干预。
 
 > 未签名的 exe 首次运行可能触发 SmartScreen 提示，选「仍要运行」即可。

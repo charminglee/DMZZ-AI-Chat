@@ -15,7 +15,7 @@ import { existsSync } from "node:fs"
 import path from "node:path"
 
 const root = path.resolve(import.meta.dirname, "..")
-const TEMP_OUT = "../dmzz-build-tmp" // 相对项目根，位于工作区外
+const TEMP_OUT = "../dzmm-build-tmp" // 相对项目根，位于工作区外
 const releaseDir = path.join(root, "release")
 const src = path.join(root, TEMP_OUT, "win-unpacked")
 const dst = path.join(releaseDir, "win-unpacked")
@@ -68,4 +68,4 @@ if (!existsSync(dst)) {
 
 await removeWithRetry(path.join(root, TEMP_OUT), "临时构建目录", 6, 3000)
 
-console.log(`\n完成！可执行程序位于: release/win-unpacked/DMZZ AI Chat.exe`)
+console.log(`\n完成！可执行程序位于: release/win-unpacked/DZMM AI Chat.exe`)

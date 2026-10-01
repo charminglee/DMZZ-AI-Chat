@@ -11,7 +11,7 @@ const path = require("node:path")
 const { currentBackground, registerThemeSync } = require("./theme.cjs")
 
 // 独立 userData，避免污染真实应用的存储目录
-app.setPath("userData", path.join(app.getPath("temp"), "dmzz-theme-test"))
+app.setPath("userData", path.join(app.getPath("temp"), "dzmm-theme-test"))
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const root = path.join(__dirname, "..")
@@ -61,7 +61,7 @@ app.whenReady().then(async () => {
     height: 820,
     show: true,
     autoHideMenuBar: true,
-    title: "DMZZ AI Chat",
+    title: "DZMM AI Chat",
     backgroundColor: currentBackground(),
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
@@ -78,7 +78,7 @@ app.whenReady().then(async () => {
   console.log("[1] themeSource（渲染进程启动后应为 system）:", nativeTheme.themeSource)
 
   // 切深色
-  await win.webContents.executeJavaScript("localStorage.setItem('dmzz-theme','dark')")
+  await win.webContents.executeJavaScript("localStorage.setItem('dzmm-theme','dark')")
   await win.webContents.executeJavaScript("location.reload()")
   await sleep(2500)
   const darkState = {
@@ -90,7 +90,7 @@ app.whenReady().then(async () => {
   await shot(win, "dark")
 
   // 切浅色
-  await win.webContents.executeJavaScript("localStorage.setItem('dmzz-theme','light')")
+  await win.webContents.executeJavaScript("localStorage.setItem('dzmm-theme','light')")
   await win.webContents.executeJavaScript("location.reload()")
   await sleep(2500)
   const lightState = {
@@ -102,7 +102,7 @@ app.whenReady().then(async () => {
   await shot(win, "light")
 
   // 恢复默认：跟随系统
-  await win.webContents.executeJavaScript("localStorage.setItem('dmzz-theme','system')")
+  await win.webContents.executeJavaScript("localStorage.setItem('dzmm-theme','system')")
   await sleep(300)
   console.log("[4] 已恢复为跟随系统")
 

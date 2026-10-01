@@ -1,0 +1,20 @@
+{
+  "hooks": {
+    "enabled": true,
+    "events": {
+      "Stop": [
+        {
+          "hooks": [
+            {
+              "type": "command",
+              "command": "npm run electron:build",
+              "enabled": true,
+              "statusMessage": "正在重新构建代码",
+              "timeout": 60
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

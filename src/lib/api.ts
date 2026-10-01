@@ -73,8 +73,8 @@ export function testApiConnection(
   streamChatCompletion({
     settings: { ...settings, maxTokens: 60 },
     messages: [{ role: "user", content: "你好，请回复「连接正常」四个字" }],
-    conversationId: "dmzz_connection_test",
-    requestId: `dmzz_test_${Date.now()}`,
+    conversationId: "dzmm_connection_test",
+    requestId: `dzmm_test_${Date.now()}`,
     userId,
     onChunk: (text) => {
       collected += text

@@ -71,7 +71,7 @@ function createWindow() {
     minHeight: 600,
     show: false,
     autoHideMenuBar: true,
-    title: "DMZZ AI Chat",
+    title: "DZMM AI Chat",
     // 与主题一致的窗口底色，避免加载/切换时闪白
     backgroundColor: currentBackground(),
     webPreferences: {

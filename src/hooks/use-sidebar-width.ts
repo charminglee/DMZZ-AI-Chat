@@ -1,8 +1,8 @@
 import { useCallback, useState } from "react"
 
-const WIDTH_KEY = "dmzz-sidebar-width"
-export const SIDEBAR_MIN_WIDTH = 200
-export const SIDEBAR_MAX_WIDTH = 400
+const WIDTH_KEY = "dzmm-sidebar-width"
+export const SIDEBAR_MIN_WIDTH = 226
+export const SIDEBAR_MAX_WIDTH = 600
 export const SIDEBAR_DEFAULT_WIDTH = 256
 
 function clamp(width: number): number {

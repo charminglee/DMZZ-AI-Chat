@@ -3,7 +3,7 @@ import { streamChatCompletion, type ChatTurn, type StreamHandle } from "@/lib/ap
 import { streamSiteChat } from "@/lib/site-channel"
 import type { ApiSettings, Conversation, Message } from "@/lib/types"
 
-const STORAGE_KEY = "dmzz-chat-state-v1"
+const STORAGE_KEY = "dzmm-chat-state-v1"
 const DEFAULT_TITLE = "新对话"
 const STOPPED_HINT = "*(已停止生成)*"
 
@@ -137,7 +137,7 @@ export function useChat(settings: ApiSettings, userId: string) {
           settings,
           messages: history,
           conversationId,
-          requestId: `dmzz_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          requestId: `dzmm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
           userId,
           onChunk,
           onDone,
