@@ -16,9 +16,27 @@ export interface DzmmBridge {
   getModels: () => Promise<unknown>
   /** 角色卡详情（card.getById 原始响应；不存在时为 null） */
   getCard: (cardId: number) => Promise<unknown>
+  /** 站点积分/VIP 信息（读 /settings/credits 页面文本解析；仅桌面版） */
+  getCredits: () => Promise<SiteCredits>
   chat: (reqId: string, payload: unknown) => Promise<void>
   cancel: () => Promise<boolean>
   onEvent: (callback: (event: SiteStreamEvent) => void) => () => void
+}
+
+/** 站点积分/VIP 信息（解析自 /settings/credits 页面文本，字段可能缺省） */
+export interface SiteCredits {
+  loggedIn: boolean
+  /** 流式请求进行中，暂不能导航隐藏窗口读取 */
+  busy?: boolean
+  /** 积分余额（页面文本原样，如 "1,234.5"） */
+  balance?: string
+  /** VIP 等级（如 "VIP 2"） */
+  vipLevel?: string
+  /** 升到下一级还差的积分 */
+  creditsToNext?: string
+  /** VIP 到期时间（如 "2026-12-31"） */
+  vipExpiry?: string
+  error?: string
 }
 
 export interface SiteStreamEvent {
@@ -305,6 +323,30 @@ export async function listSiteModels(): Promise<
 /** 查询站点登录态的轻量包装（设置界面用） */
 export function getSiteStatus() {
   return window.desktop?.dzmm?.getStatus() ?? Promise.resolve({ loggedIn: false })
+}
+
+/** 积分信息缓存：菜单频繁开合，5 分钟内直接复用，避免反复导航隐藏窗口 */
+let creditsCache: { at: number; data: SiteCredits } | null = null
+const CREDITS_TTL = 5 * 60_000
+
+/** 读取站点积分/VIP 信息（用户菜单用）；失败/非桌面环境返回 loggedIn:false */
+export async function getSiteCredits(force = false): Promise<SiteCredits> {
+  if (!force && creditsCache && Date.now() - creditsCache.at < CREDITS_TTL) {
+    return creditsCache.data
+  }
+  const bridge = window.desktop?.dzmm
+  if (!bridge) return { loggedIn: false }
+  const data = await bridge.getCredits()
+  // 流式进行中（busy）或读取失败不写缓存，下次打开菜单重试
+  if (!data.busy && !data.error) {
+    creditsCache = { at: Date.now(), data }
+  }
+  return data
+}
+
+/** 站点积分缓存失效（登录/登出等状态变化后调用） */
+export function invalidateSiteCredits() {
+  creditsCache = null
 }
 
 /** card.getById 原始响应里我们关心的字段 */

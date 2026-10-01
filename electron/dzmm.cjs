@@ -19,6 +19,7 @@ const GET_ME_INPUT = encodeURIComponent(
 
 let win = null
 let loginMode = false // 登录模式下允许弹出的第三方窗口（OAuth 等）
+let chatBusy = false // 网页通道流式请求进行中（期间禁止导航隐藏窗口，否则会打断 SSE）
 let getMainWindow = () => null
 
 /** 等待隐藏窗口就绪（完成加载且停在站点域内） */
@@ -267,9 +268,11 @@ async function startChat(reqId, payload) {
   if (!result.launched) {
     throw new Error(result.error || "网页通道请求启动失败")
   }
+  chatBusy = true
 }
 
 function cancelChat() {
+  chatBusy = false
   if (win && !win.isDestroyed()) {
     win.webContents
       .executeJavaScript("window.__dzmmAbort && window.__dzmmAbort.abort()", true)
@@ -277,11 +280,82 @@ function cancelChat() {
   }
 }
 
+/**
+ * credits 页面文本 → 结构化积分信息（防御式解析，页面文案改版可能失配）。
+ * 提取不到的字段为 undefined，由界面决定如何降级展示。
+ */
+function parseCredits(text) {
+  const flat = String(text || "").replace(/\s+/g, " ")
+  const first = (patterns) => {
+    for (const re of patterns) {
+      const m = flat.match(re)
+      if (m) return m[1].trim()
+    }
+    return undefined
+  }
+  return {
+    balance: first([
+      /(?:积分余额|当前积分|剩余积分|可用积分)[^0-9.,]{0,6}([\d,]+(?:\.\d+)?)/,
+    ]),
+    vipLevel: first([/\b(VIP\s*\d+)\b/, /\b(Lv\.?\s*\d+)\b/i]),
+    creditsToNext: first([
+      /(?:还需|再充[值值]?|还差)[^0-9]{0,8}([\d,]+(?:\.\d+)?)\s*(?:个)?积分/,
+      /([\d,]+(?:\.\d+)?)\s*(?:个)?积分[^。]{0,10}升级/,
+      /(?:距离|距)[^0-9]{0,10}([\d,]+(?:\.\d+)?)\s*(?:个)?积分/,
+    ]),
+    vipExpiry: first([
+      /(?:到期时间|有效期至|有效期|到期)[^\d]{0,6}(\d{4}[-/年.]\d{1,2}[-/月.]\d{1,2}\s*日?)/,
+    ]),
+  }
+}
+
+/**
+ * 读取登录用户的积分/VIP 信息：把隐藏窗口导航到 /settings/credits，
+ * 等页面渲染出相关文本后抓 innerText 解析。
+ * 流式请求进行中直接返回 busy（导航会打断 SSE，绝不能此时导航）。
+ */
+async function getCredits() {
+  if (chatBusy) {
+    return { loggedIn: true, busy: true }
+  }
+  await waitReady()
+  const status = await runPageScript(statusScript())
+  if (!status.loggedIn) {
+    return { loggedIn: false }
+  }
+  const w = ensureWindow(false)
+  if (!w.webContents.getURL().startsWith(`${SITE_ORIGIN}/settings/credits`)) {
+    await w.webContents.loadURL(`${SITE_ORIGIN}/settings/credits`)
+  }
+  // SPA 异步取数：轮询页面文本，出现积分/VIP 相关内容（或超时）即返回
+  const script = `(function () {
+    return new Promise(function (resolve) {
+      var start = Date.now()
+      var tick = function () {
+        var text = document.body ? String(document.body.innerText) : ''
+        if (/积分|VIP|会员|等级/.test(text) || Date.now() - start > 12000) {
+          resolve(JSON.stringify({ text: text.slice(0, 5000) }))
+          return
+        }
+        setTimeout(tick, 400)
+      }
+      tick()
+    })
+  })()`
+  const raw = await w.webContents.executeJavaScript(script, true)
+  const parsed = JSON.parse(raw)
+  return { loggedIn: true, ...parseCredits(parsed.text) }
+}
+
 function initDzmmBridge(mainWindowGetter) {
   getMainWindow = mainWindowGetter
 
   // 隐藏窗口 preload → 主进程 → 主界面
   ipcMain.on("dzmm:stream-event", (_event, payload) => {
+    // 流结束（正常关闭/HTTP 错误/连接失败）后解除「导航禁区」，允许读取积分页
+    if (payload && (payload.type === "close" || payload.type === "httpError" || payload.type === "fetchError")) {
+      chatBusy = false
+    }
     const main = getMainWindow()
     if (main && !main.isDestroyed()) {
       main.webContents.send("dzmm:event", payload)
@@ -308,6 +382,9 @@ function initDzmmBridge(mainWindowGetter) {
     getCard(cardId).catch((e) => {
       throw new Error(e.message)
     }),
+  )
+  ipcMain.handle("dzmm:get-credits", () =>
+    getCredits().catch((e) => ({ loggedIn: false, error: e.message })),
   )
   ipcMain.handle("dzmm:chat", (_e, reqId, payload) =>
     startChat(reqId, payload).catch((e) => {

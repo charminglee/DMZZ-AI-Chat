@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { Check, Eye, EyeOff, Loader2, LogIn, RefreshCw, Wifi } from "lucide-react"
 import { testApiConnection } from "@/lib/api"
-import { getSiteStatus } from "@/lib/site-channel"
+import { getSiteStatus, invalidateSiteCredits } from "@/lib/site-channel"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -119,7 +119,7 @@ function Toggle({
         className={cn(
           "pointer-events-none block size-5 rounded-full bg-white shadow-sm transition-transform",
           on ? "translate-x-5" : "translate-x-0",
-      )}
+        )}
       />
     </button>
   )
@@ -152,6 +152,7 @@ function SiteLoginRow() {
     setLogging(true)
     try {
       const result = await bridge.login()
+      if (result.ok) invalidateSiteCredits()
       setState({ loggedIn: result.ok, name: result.name })
     } finally {
       setLogging(false)
@@ -161,7 +162,7 @@ function SiteLoginRow() {
   if (!window.desktop?.dzmm) {
     return (
       <CardBlock>
-      <p className="text-xs text-destructive">网页通道仅桌面版可用（请使用 Electron 启动）</p>
+        <p className="text-xs text-destructive">网页通道仅桌面版可用（请使用 Electron 启动）</p>
       </CardBlock>
     )
   }
@@ -312,38 +313,38 @@ export function SettingsDialog({ open, onOpenChange, controller }: SettingsDialo
               }
             >
               <div className="flex items-center gap-2">
-              <Select
-                value={currentGroup?.key ?? ""}
-                onValueChange={(key) => {
-                  const group = modelGroups.find((g) => g.key === key)
-                  if (group) patch({ model: resolveVariant(group, currentVariant?.size).id })
-                }}
-              >
-                  <SelectTrigger className="w-72">
-                  <SelectValue placeholder="选择模型" />
-                </SelectTrigger>
-                <SelectContent
-                  position="popper"
-                  sideOffset={6}
-                  className="max-h-[min(16rem,var(--radix-select-content-available-height))] w-[var(--radix-select-trigger-width)]"
+                <Select
+                  value={currentGroup?.key ?? ""}
+                  onValueChange={(key) => {
+                    const group = modelGroups.find((g) => g.key === key)
+                    if (group) patch({ model: resolveVariant(group, currentVariant?.size).id })
+                  }}
                 >
-                  {groupBySeries(modelGroups).map(({ series, groups }) => (
-                    <SelectGroup key={series.key}>
-                      <SelectLabel className="text-xs text-muted-foreground">
-                        {series.name} · {series.tagline}
-                      </SelectLabel>
-                      {groups.map((group) => (
-                        <SelectItem key={group.key} value={group.key}>
-                          <span className="flex w-full items-center justify-between gap-3">
-                            <span>{group.name}</span>
-                            <span className="text-xs text-muted-foreground">{sizeSummary(group)}</span>
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  ))}
-                </SelectContent>
-              </Select>
+                  <SelectTrigger className="w-72">
+                    <SelectValue placeholder="选择模型" />
+                  </SelectTrigger>
+                  <SelectContent
+                    position="popper"
+                    sideOffset={6}
+                    className="max-h-[min(16rem,var(--radix-select-content-available-height))] w-[var(--radix-select-trigger-width)]"
+                  >
+                    {groupBySeries(modelGroups).map(({ series, groups }) => (
+                      <SelectGroup key={series.key}>
+                        <SelectLabel className="text-xs text-muted-foreground">
+                          {series.name} · {series.tagline}
+                        </SelectLabel>
+                        {groups.map((group) => (
+                          <SelectItem key={group.key} value={group.key}>
+                            <span className="flex w-full items-center justify-between gap-3">
+                              <span>{group.name}</span>
+                              <span className="text-xs text-muted-foreground">{sizeSummary(group)}</span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Button
                   type="button"
                   variant="outline"
@@ -361,25 +362,25 @@ export function SettingsDialog({ open, onOpenChange, controller }: SettingsDialo
                 </Button>
               </div>
             </SettingsRow>
-              {currentGroup && currentGroup.variants.length > 1 && (
+            {currentGroup && currentGroup.variants.length > 1 && (
               <SettingsRow title="上下文长度">
                 <div className="flex w-72 gap-0.5 rounded-lg bg-muted/60 p-0.5">
-                    {currentGroup.variants.map((variant) => (
-                      <button
-                        key={variant.id}
-                        type="button"
-                        onClick={() => patch({ model: variant.id })}
-                        className={cn(
-                          "flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
-                          variant.id === draft.model
-                            ? "bg-background text-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground",
-                        )}
-                      >
-                        {variant.size}
-                      </button>
-                    ))}
-                  </div>
+                  {currentGroup.variants.map((variant) => (
+                    <button
+                      key={variant.id}
+                      type="button"
+                      onClick={() => patch({ model: variant.id })}
+                      className={cn(
+                        "flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
+                        variant.id === draft.model
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {variant.size}
+                    </button>
+                  ))}
+                </div>
               </SettingsRow>
             )}
             {modelGroups.length === 0 && !modelsError && !modelsLoading && (
@@ -388,17 +389,17 @@ export function SettingsDialog({ open, onOpenChange, controller }: SettingsDialo
                   还没有模型列表，点击上方「刷新列表」按钮从接口获取可用模型。
                 </p>
               </CardBlock>
-              )}
-              {modelsError && (
+            )}
+            {modelsError && (
               <CardBlock>
                 <p className="text-xs text-destructive">{modelsError}</p>
               </CardBlock>
-              )}
+            )}
           </SettingsGroup>
 
           {draft.mode === "web" && (
             <SettingsGroup title="网页通道">
-                <SiteLoginRow />
+              <SiteLoginRow />
               <SettingsRow
                 title="深度思考"
                 description="角色扮演深度思考功能让AI角色在回复前先进行思考分析，帮助角色更好地理解场景、分析设定、规划回应策略。"

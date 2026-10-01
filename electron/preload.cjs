@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld("desktop", {
     createChat: (cardId) => ipcRenderer.invoke("dzmm:create-chat", cardId),
     getModels: () => ipcRenderer.invoke("dzmm:get-models"),
     getCard: (cardId) => ipcRenderer.invoke("dzmm:get-card", cardId),
+    getCredits: () => ipcRenderer.invoke("dzmm:get-credits"),
     chat: (reqId, payload) => ipcRenderer.invoke("dzmm:chat", reqId, payload),
     cancel: () => ipcRenderer.invoke("dzmm:cancel"),
     /** 订阅流式事件；返回取消订阅函数 */

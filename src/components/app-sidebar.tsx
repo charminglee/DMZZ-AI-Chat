@@ -65,6 +65,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { SidebarResizer } from "@/components/sidebar-resizer"
+import { getSiteCredits, type SiteCredits } from "@/lib/site-channel"
 import { cn } from "@/lib/utils"
 import type { ChatController } from "@/hooks/use-chat"
 import type { Conversation } from "@/lib/types"
@@ -131,6 +132,9 @@ export function AppSidebar({ chat, theme, onOpenSettings, sidebarWidth, immersiv
   const [nameDialogOpen, setNameDialogOpen] = useState(false)
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState<Conversation | null>(null)
+  // 站点积分/VIP 信息：菜单打开时拉取（site-channel 内有 5 分钟缓存）
+  const [credits, setCredits] = useState<SiteCredits | null>(null)
+  const [creditsLoading, setCreditsLoading] = useState(false)
   const { state, toggleSidebar } = useSidebar()
   const collapsed = state === "collapsed"
   const firstRender = useRef(true)
@@ -182,6 +186,16 @@ export function AppSidebar({ chat, theme, onOpenSettings, sidebarWidth, immersiv
   const confirmRename = () => {
     if (renaming) chat.renameConversation(renaming.id, renameValue)
     setRenaming(null)
+  }
+
+  /** 菜单打开时刷新站点积分信息（失败静默：不展示该区块即可） */
+  const refreshCredits = () => {
+    if (creditsLoading) return
+    setCreditsLoading(true)
+    getSiteCredits()
+      .then((data) => setCredits(data))
+      .catch(() => setCredits({ loggedIn: false, error: "读取失败" }))
+      .finally(() => setCreditsLoading(false))
   }
 
   return (
@@ -434,7 +448,7 @@ export function AppSidebar({ chat, theme, onOpenSettings, sidebarWidth, immersiv
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <DropdownMenu>
+            <DropdownMenu onOpenChange={(open) => open && refreshCredits()}>
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton
                   size="lg"
@@ -457,7 +471,27 @@ export function AppSidebar({ chat, theme, onOpenSettings, sidebarWidth, immersiv
                 <DropdownMenuLabel className="truncate text-xs text-muted-foreground">
                   {userName} · 本地账户
                 </DropdownMenuLabel>
-                <DropdownMenuSeparator />
+                {creditsLoading && (
+                  <p className="px-2 py-1 text-xs text-muted-foreground">正在获取站点积分信息…</p>
+                )}
+                {credits?.loggedIn && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 px-2 py-1.5 text-xs">
+                      <span className="text-muted-foreground">积分余额</span>
+                      <span className="truncate text-right font-medium">{credits.balance ?? "--"}</span>
+                      <span className="text-muted-foreground">VIP 等级</span>
+                      <span className="truncate text-right font-medium">{credits.vipLevel ?? "--"}</span>
+                      <span className="text-muted-foreground">升级还差</span>
+                      <span className="truncate text-right font-medium">
+                        {credits.creditsToNext ? `${credits.creditsToNext} 积分` : "--"}
+                      </span>
+                      <span className="text-muted-foreground">VIP 到期</span>
+                      <span className="truncate text-right font-medium">{credits.vipExpiry ?? "--"}</span>
+                    </div>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 <DropdownMenuItem onClick={() => setNameDialogOpen(true)}>
                   <UserPen className="size-4" />
                   修改称呼
