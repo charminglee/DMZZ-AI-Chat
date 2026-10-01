@@ -215,3 +215,61 @@
     var(--brand-to) 100%
   );
 }
+
+/* ---- 流式输出动画 ----
+   新到达的文本片段「墨迹晕开」：由虚到实。片段由 StreamingBody 临时包裹为
+   <span class="stream-ink">，下一批文本到达前即还原为纯文本，不改变任何字符。 */
+@keyframes stream-ink {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+.stream-ink {
+  animation: stream-ink 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* 行内光标：品牌渐变细条 + 柔光，呼吸式明暗；生成结束后淡出 */
+@keyframes caret-breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.stream-caret {
+  display: inline-block;
+  width: 3px;
+  height: 1.05em;
+  margin-left: 3px;
+  border-radius: 9999px;
+  vertical-align: -0.16em;
+  background-image: linear-gradient(180deg, var(--brand-mid), var(--brand-to));
+  box-shadow: 0 0 6px var(--brand-glow);
+  opacity: 1;
+  transition: opacity 350ms ease;
+}
+
+.stream-caret.is-live {
+  animation: caret-breathe 1.15s ease-in-out infinite;
+}
+
+.stream-caret.is-done {
+  animation: none;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stream-ink,
+  .stream-caret.is-live {
+    animation: none;
+  }
+}

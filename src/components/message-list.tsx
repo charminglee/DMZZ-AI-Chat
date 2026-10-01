@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { Check, Copy, Pencil, RotateCcw, Sparkles } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Markdown } from "@/components/markdown"
@@ -53,6 +53,114 @@ function CopyButton({ content }: { content: string }) {
     >
       {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
     </button>
+  )
+}
+
+/** 单批新增文本超过此长度（整段跳变）时不做晕开动画，避免大面积闪烁 */
+const MAX_INK_CHARS = 240
+
+/**
+ * 流式正文：每批新到达的文本做「墨迹晕开」淡入，光标跟随正文末尾。
+ *
+ * 实现要点（对 Markdown 渲染的纯文本做临时装饰，不改动任何字符）：
+ * - 新片段被临时包成 <span class="stream-ink">，下一批到达前在 effect 清理里还原；
+ * - React 就地更新文本节点，若它已被写入新内容则只需移除装饰 span（此时残缺字符
+ *   已包含在新文本里），只有未被改写时才把拆出去的后缀拼回，保证文本零丢失；
+ * - 光标为手动创建的元素（React 不感知），避免与就地更新/结构变化互相干扰。
+ */
+function StreamingBody({ content, streaming }: { content: string; streaming: boolean }) {
+  const hostRef = useRef<HTMLDivElement>(null)
+  const caretRef = useRef<HTMLSpanElement | null>(null)
+  /** 已提交到 DOM 的内容，作为增量计算基准 */
+  const committedRef = useRef("")
+  const splitRef = useRef<{ node: Text; span: HTMLSpanElement; prefix: string } | null>(null)
+
+  const restore = () => {
+    const split = splitRef.current
+    if (!split) return
+    splitRef.current = null
+    const { node, span, prefix } = split
+    if (node.parentNode && node.data === prefix) {
+      node.data = prefix + (span.textContent ?? "")
+    }
+    span.remove()
+  }
+
+  useLayoutEffect(() => {
+    const host = hostRef.current
+    const prev = committedRef.current
+    committedRef.current = content
+    if (!host) return
+
+    let caret = caretRef.current
+    if (!caret) {
+      caret = document.createElement("span")
+      caret.setAttribute("aria-hidden", "true")
+      caretRef.current = caret
+    }
+    caret.className = streaming ? "stream-caret is-live" : "stream-caret is-done"
+
+    const delta = content.startsWith(prev) ? content.slice(prev.length) : ""
+    if (streaming && delta.length > 0 && delta.length <= MAX_INK_CHARS) {
+      const walker = document.createTreeWalker(host, NodeFilter.SHOW_TEXT)
+      let node: Text | null = null
+      for (let t = walker.nextNode(); t !== null; t = walker.nextNode()) {
+        const text = t as Text
+        if (text.data.length > 0) node = text
+      }
+      if (node) {
+        // 渲染层会剥掉 markdown 标记（**、- 等），用「与增量末尾的最长共同后缀」
+        // 定位正文里真正新增的可见文字
+        const data = node.data
+        let take = 0
+        for (let len = Math.min(delta.length, data.length); len > 0; len--) {
+          if (data.endsWith(delta.slice(-len))) {
+            take = len
+            break
+          }
+        }
+        if (take > 0) {
+          const span = document.createElement("span")
+          span.className = "stream-ink"
+          span.textContent = data.slice(-take)
+          const prefix = data.slice(0, -take)
+          node.data = prefix
+          node.after(span)
+          splitRef.current = { node, span, prefix }
+        }
+      }
+    }
+
+    // 光标移到正文末尾：代码块内落在代码行尾；引用/列表等容器钻进最后一个子块，
+    // 其余落在最后一个块级元素末尾，保证光标始终贴着末行文字
+    const markdownRoot = host.lastElementChild
+    let lastBlock = markdownRoot?.lastElementChild ?? markdownRoot
+    if (lastBlock) {
+      const inner = lastBlock.lastElementChild
+      if (inner && (inner.tagName === "P" || inner.tagName === "LI")) lastBlock = inner
+      const code = lastBlock.querySelector("pre > code")
+      ;(code ?? lastBlock).appendChild(caret)
+    } else if (markdownRoot) {
+      markdownRoot.appendChild(caret)
+    } else {
+      host.appendChild(caret)
+    }
+
+    return restore
+  }, [content, streaming])
+
+  useEffect(
+    () => () => {
+      caretRef.current?.remove()
+      caretRef.current = null
+    },
+    [],
+  )
+
+  return (
+    <div ref={hostRef} data-slot="stream-body">
+      <Markdown content={content} />
+    </div>
   )
 }
 
@@ -201,12 +309,7 @@ export function MessageList({
                 {message.content === "" && isStreamingMessage ? (
                   <TypingDots />
                 ) : (
-                  <>
-                    <Markdown content={message.content} />
-                    {isStreamingMessage && (
-                      <span className="ml-0.5 inline-block h-4 w-2 translate-y-0.5 animate-pulse rounded-sm bg-foreground/70" />
-                    )}
-                  </>
+                  <StreamingBody content={message.content} streaming={isStreamingMessage} />
                 )}
                 {!isStreamingMessage && message.content !== "" && (
                   <div className="mt-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
